@@ -1,0 +1,10 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2025-01-03
+  Features:
+    - Initial release
+    - Line graph rendering with multi-series support
+    - Stacked bar chart rendering
+    - Hidden surface and chunk management
+    - 12-color series palette
+    - Time and percentage label formatting
