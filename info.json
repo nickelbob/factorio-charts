@@ -1,8 +1,11 @@
 {
     "name": "factorio-charts",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "title": "Factorio Charts",
     "author": "Cybersyn Team",
     "factorio_version": "2.0",
-    "description": "Reusable charting library for rendering line graphs and bar charts in Factorio mods."
+    "description": "Reusable charting library for rendering line graphs and bar charts in Factorio mods.",
+    "dependencies": [
+        "? factorio-test >= 2.0.0"
+    ]
 }

@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: 2025-01-03
+  Features:
+    - Added test suite using FactorioTest framework
+    - Tests for surface management, line graphs, bar charts, and edge cases
+---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: 2025-01-03
   Features:
