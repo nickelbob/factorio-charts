@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.2
+Date: 2025-01-03
+  Features:
+    - Added mod portal thumbnail
+    - Added factorio-test-harness integration for automated CLI testing
+---------------------------------------------------------------------------------------------------
 Version: 1.0.1
 Date: 2025-01-03
   Features:
