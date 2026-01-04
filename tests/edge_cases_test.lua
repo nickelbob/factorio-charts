@@ -1,5 +1,5 @@
 -- Edge case and regression tests
-local charts = require("charts")
+local charts = require("__factorio-charts__/charts")
 
 test("line graph handles flat data (min == max)", function()
     local surface_data = charts.create_surface("test-edge-1")

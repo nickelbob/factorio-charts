@@ -1,5 +1,5 @@
 -- Surface and chunk management tests
-local charts = require("charts")
+local charts = require("__factorio-charts__/charts")
 
 test("create_surface creates a valid surface", function()
     local surface_data = charts.create_surface("test-surface-1")

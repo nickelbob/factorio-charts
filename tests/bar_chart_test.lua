@@ -1,5 +1,5 @@
 -- Bar chart rendering tests
-local charts = require("charts")
+local charts = require("__factorio-charts__/charts")
 
 test("render_stacked_bars with valid data returns render IDs", function()
     local surface_data = charts.create_surface("test-bar-1")

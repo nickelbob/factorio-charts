@@ -1,5 +1,5 @@
 -- Line graph rendering tests
-local charts = require("charts")
+local charts = require("__factorio-charts__/charts")
 
 -- Helper to create test data
 local function make_test_data(num_points, series_names)
