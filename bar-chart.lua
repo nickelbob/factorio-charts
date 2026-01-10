@@ -437,6 +437,13 @@ function bar_chart.render_with_overlays(surface, chunk, options)
 		return nil
 	end
 
+	local deliveries = options.deliveries
+	local phase_colors = options.phase_colors
+	local phase_order = options.phase_order
+	local hatched_phases = options.hatched_phases or {}
+	local ttl = options.ttl or 360
+	local viewport_width = options.viewport_width or 900
+	local viewport_height = options.viewport_height or 700
 	local camera_position = options.camera_position
 	local camera_zoom = options.camera_zoom
 	local widget_size = options.widget_size
@@ -446,62 +453,218 @@ function bar_chart.render_with_overlays(surface, chunk, options)
 		return nil
 	end
 
-	-- Render the chart and get metadata
-	local line_ids, metadata = bar_chart.render_with_metadata(surface, chunk, options)
-	if not line_ids or not metadata then
+	if #deliveries == 0 then
 		return nil
 	end
 
-	-- Create hit regions from metadata
-	local hit_regions = interaction_module.create_bar_chart_hit_regions(chunk, metadata)
+	local grid_color = colors_module.get_grid_color()
+	local label_color = colors_module.get_label_color()
 
-	-- Generate overlay button configs
+	-- Graph coordinates (SAME as render_with_metadata)
+	local graph_left = 1.5
+	local graph_right = viewport_width / 32 - 0.5
+	local graph_top = 1
+	local graph_bottom = viewport_height / 32 - 1.5
+
+	local graph_width = graph_right - graph_left
+	local graph_height = graph_bottom - graph_top
+
+	local entity_pos = chunk.coord
+	local line_ids = {}
 	local button_configs = {}
+
+	-- Screen coordinate helpers - calculate ONCE using same reference point
 	local pixels_per_tile = 32 * camera_zoom
-	local center_x = widget_size.width / 2
-	local center_y = widget_size.height / 2
+	local screen_center_x = widget_size.width / 2
+	local screen_center_y = widget_size.height / 2
 
-	for _, region in ipairs(hit_regions) do
-		local bounds = region.tile_bounds
-
-		-- Calculate screen position for region bounds
-		local left_screen = center_x + (bounds.left - camera_position.x) * pixels_per_tile
-		local top_screen = center_y + (bounds.top - camera_position.y) * pixels_per_tile
-		local right_screen = center_x + (bounds.right - camera_position.x) * pixels_per_tile
-		local bottom_screen = center_y + (bounds.bottom - camera_position.y) * pixels_per_tile
-
-		local width = math.max(1, math.floor(right_screen - left_screen))
-		local height = math.max(1, math.floor(bottom_screen - top_screen))
-		local left_margin = math.floor(left_screen)
-		local top_margin = math.floor(top_screen)
-
-		-- Only include buttons that are at least partially visible
-		if left_margin + width > 0 and left_margin < widget_size.width and
-		   top_margin + height > 0 and top_margin < widget_size.height then
-
-			-- Generate tooltip if function provided
-			local tooltip = nil
-			if get_tooltip then
-				local bar_index = region.data.bar_index
-				local phase_name = region.data.phase_name
-				local duration = region.data.duration
-				local delivery = options.deliveries[bar_index]
-				tooltip = get_tooltip(bar_index, phase_name, duration, delivery)
-			end
-
-			button_configs[#button_configs + 1] = {
-				region_id = region.id,
-				style_mods = {
-					left_margin = left_margin,
-					top_margin = top_margin,
-					width = width,
-					height = height,
-				},
-				region = region,
-				tooltip = tooltip,
-			}
+	-- Calculate max total time for Y-axis scaling
+	local max_total = 0
+	for _, delivery in ipairs(deliveries) do
+		local total = 0
+		for _, phase in ipairs(phase_order) do
+			total = total + (delivery[phase] or 0)
+		end
+		if total > max_total then
+			max_total = total
 		end
 	end
+
+	if max_total == 0 then
+		max_total = 1
+	end
+
+	max_total = max_total * 1.1
+
+	-- Bar dimensions
+	local num_bars = #deliveries
+	local bar_spacing = 0.1
+	local total_spacing = bar_spacing * (num_bars + 1)
+	local bar_width = (graph_width - total_spacing) / num_bars
+	if bar_width > 1.5 then
+		bar_width = 1.5
+	end
+
+	local total_bar_width = bar_width * num_bars
+	local remaining_space = graph_width - total_bar_width
+	bar_spacing = remaining_space / (num_bars + 1)
+
+	-- Draw Y-axis grid lines and labels
+	local num_grid_lines = 5
+	for i = 0, num_grid_lines - 1 do
+		local grid_value = (max_total * i / (num_grid_lines - 1))
+		local grid_y = graph_bottom - (grid_value / max_total) * graph_height
+
+		local id = rendering.draw_line{
+			surface = surface,
+			color = grid_color,
+			width = 1,
+			from = {entity_pos.x + graph_left, entity_pos.y + grid_y},
+			to = {entity_pos.x + graph_right, entity_pos.y + grid_y},
+			time_to_live = ttl,
+		}
+		line_ids[#line_ids + 1] = id
+
+		local text_id = rendering.draw_text{
+			text = format_module.time_label(grid_value),
+			surface = surface,
+			target = {entity_pos.x + graph_left - 0.2, entity_pos.y + grid_y},
+			color = label_color,
+			scale = 0.8,
+			alignment = "right",
+			vertical_alignment = "middle",
+			time_to_live = ttl,
+		}
+		line_ids[#line_ids + 1] = text_id
+	end
+
+	-- Draw stacked bars AND generate button configs in the SAME loop
+	for bar_idx, delivery in ipairs(deliveries) do
+		local bar_x = graph_left + bar_spacing + (bar_idx - 1) * (bar_width + bar_spacing)
+		local bar_bottom = graph_bottom
+		local cumulative_height = 0
+
+		for _, phase in ipairs(phase_order) do
+			local phase_duration = delivery[phase] or 0
+			if phase_duration > 0 then
+				local segment_height = (phase_duration / max_total) * graph_height
+
+				-- Calculate tile coordinates (EXACT same as bar drawing)
+				local seg_left = entity_pos.x + bar_x
+				local seg_right = entity_pos.x + bar_x + bar_width
+				local seg_top = entity_pos.y + bar_bottom - cumulative_height - segment_height
+				local seg_bottom = entity_pos.y + bar_bottom - cumulative_height
+
+				-- Draw the bar segment
+				local id = rendering.draw_rectangle{
+					surface = surface,
+					color = phase_colors[phase],
+					filled = true,
+					left_top = {seg_left, seg_top},
+					right_bottom = {seg_right, seg_bottom},
+					time_to_live = ttl,
+				}
+				line_ids[#line_ids + 1] = id
+
+				-- Calculate screen position using SAME tile coords we just used for drawing
+				local left_screen = screen_center_x + (seg_left - camera_position.x) * pixels_per_tile
+				local top_screen = screen_center_y + (seg_top - camera_position.y) * pixels_per_tile
+				local right_screen = screen_center_x + (seg_right - camera_position.x) * pixels_per_tile
+				local bottom_screen = screen_center_y + (seg_bottom - camera_position.y) * pixels_per_tile
+
+				local btn_width = math.max(1, math.floor(right_screen - left_screen))
+				local btn_height = math.max(1, math.floor(bottom_screen - top_screen))
+				local left_margin = math.floor(left_screen)
+				local top_margin = math.floor(top_screen)
+
+				-- Only include buttons that are at least partially visible
+				if left_margin + btn_width > 0 and left_margin < widget_size.width and
+				   top_margin + btn_height > 0 and top_margin < widget_size.height then
+
+					local tooltip = nil
+					if get_tooltip then
+						tooltip = get_tooltip(bar_idx, phase, phase_duration, delivery)
+					end
+
+					button_configs[#button_configs + 1] = {
+						region_id = "bar_" .. bar_idx .. "_" .. phase,
+						style_mods = {
+							left_margin = left_margin,
+							top_margin = top_margin,
+							width = btn_width,
+							height = btn_height,
+						},
+						region = {
+							tile_bounds = {
+								left = seg_left,
+								top = seg_top,
+								right = seg_right,
+								bottom = seg_bottom,
+							},
+							data = {
+								bar_index = bar_idx,
+								phase_name = phase,
+								duration = phase_duration,
+							},
+						},
+						tooltip = tooltip,
+					}
+				end
+
+				-- Draw diagonal stripes for hatched phases
+				if hatched_phases[phase] then
+					local stripe_spacing = 0.15
+					local stripe_color = {r = 0, g = 0, b = 0, a = 0.4}
+					local seg_width = seg_right - seg_left
+					local seg_height_actual = seg_bottom - seg_top
+
+					local num_stripes = math.ceil((seg_width + seg_height_actual) / stripe_spacing)
+					for stripe_i = 0, num_stripes do
+						local offset = stripe_i * stripe_spacing
+						local start_x = seg_left + offset
+						local start_y = seg_bottom
+						if start_x > seg_right then
+							start_y = seg_bottom - (start_x - seg_right)
+							start_x = seg_right
+						end
+						local end_x = seg_left + offset - seg_height_actual
+						local end_y = seg_top
+						if end_x < seg_left then
+							end_y = seg_top + (seg_left - end_x)
+							end_x = seg_left
+						end
+
+						if start_y >= seg_top and end_y <= seg_bottom and start_x >= seg_left and end_x <= seg_right then
+							local stripe_id = rendering.draw_line{
+								surface = surface,
+								color = stripe_color,
+								width = 1,
+								from = {start_x, start_y},
+								to = {end_x, end_y},
+								time_to_live = ttl,
+							}
+							line_ids[#line_ids + 1] = stripe_id
+						end
+					end
+				end
+
+				cumulative_height = cumulative_height + segment_height
+			end
+		end
+	end
+
+	-- Build metadata for advanced use
+	local metadata = {
+		graph_left = graph_left,
+		graph_right = graph_right,
+		graph_top = graph_top,
+		graph_bottom = graph_bottom,
+		graph_width = graph_width,
+		graph_height = graph_height,
+		max_total = max_total,
+		bar_width = bar_width,
+		bar_spacing = bar_spacing,
+	}
 
 	return line_ids, button_configs, metadata
 end
