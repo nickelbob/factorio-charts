@@ -3,6 +3,7 @@ local bar_chart = {}
 
 local colors_module = require("colors")
 local format_module = require("format")
+local interaction_module = require("interaction")
 
 ---Render a stacked bar chart to a chunk
 ---@param surface LuaSurface The rendering surface
@@ -452,8 +453,7 @@ function bar_chart.render_with_overlays(surface, chunk, options)
 	end
 
 	-- Create hit regions from metadata
-	local interaction = require("interaction")
-	local hit_regions = interaction.create_bar_chart_hit_regions(chunk, metadata)
+	local hit_regions = interaction_module.create_bar_chart_hit_regions(chunk, metadata)
 
 	-- Generate overlay button configs
 	local button_configs = {}
