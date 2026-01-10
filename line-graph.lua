@@ -42,27 +42,45 @@ function line_graph.render(surface, chunk, options)
 	local label_color = colors_module.get_label_color()
 	local max_lines = colors_module.get_max_series()
 
-	-- Collect and sort series by sum
+	-- Collect and sort ALL series by sum first (for consistent color assignment)
+	local all_series = {}
+	local all_count = 0
+	for name, count in pairs(counts) do
+		all_count = all_count + 1
+		all_series[all_count] = {name = name, sum = sum[name] or 0}
+	end
+
+	if all_count == 0 then
+		return nil
+	end
+
+	table.sort(all_series, function(a, b)
+		if a.sum ~= b.sum then
+			return a.sum > b.sum
+		end
+		return a.name < b.name
+	end)
+
+	-- Build color index mapping (series name -> color index based on full sorted list)
+	local color_indices = {}
+	for i, entry in ipairs(all_series) do
+		color_indices[entry.name] = ((i - 1) % max_lines) + 1
+	end
+
+	-- Filter to selected series only, preserving sort order
 	local show_all = not selected_series or not next(selected_series)
 	local ordered_sums = {}
 	local datasets = 0
-	for name, count in pairs(counts) do
-		if show_all or selected_series[name] ~= false then
+	for _, entry in ipairs(all_series) do
+		if show_all or selected_series[entry.name] ~= false then
 			datasets = datasets + 1
-			ordered_sums[datasets] = {name = name, sum = sum[name] or 0}
+			ordered_sums[datasets] = {name = entry.name, sum = entry.sum, color_index = color_indices[entry.name]}
 		end
 	end
 
 	if datasets == 0 then
 		return nil
 	end
-
-	table.sort(ordered_sums, function(a, b)
-		if a.sum ~= b.sum then
-			return a.sum > b.sum
-		end
-		return a.name < b.name
-	end)
 
 	local to_draw = math.min(datasets, max_lines)
 
@@ -101,10 +119,11 @@ function line_graph.render(surface, chunk, options)
 	end
 
 	-- Calculate graph coordinates
-	local graph_left = 0.6
-	local graph_right = viewport_width / 32 - 1.5
+	-- graph_left must leave room for y-axis labels
+	local graph_left = 2.0
+	local graph_right = viewport_width / 32 - 0.5  -- Reduced right margin for better fill
 	local graph_top = 1
-	local graph_bottom = viewport_height / 32 - 1
+	local graph_bottom = viewport_height / 32 - 0.5  -- Reduced bottom margin
 
 	local graph_width = graph_right - graph_left
 	local graph_height = graph_bottom - graph_top
@@ -145,7 +164,7 @@ function line_graph.render(surface, chunk, options)
 		local text_id = rendering.draw_text{
 			text = label_text,
 			surface = surface,
-			target = {entity_pos.x + 0.5, entity_pos.y + grid_y},
+			target = {entity_pos.x + graph_left - 0.2, entity_pos.y + grid_y},
 			color = label_color,
 			scale = 1.0,
 			alignment = "right",
@@ -185,7 +204,8 @@ function line_graph.render(surface, chunk, options)
 			local next_points = {}
 
 			for j = to_draw, 1, -1 do
-				local name = ordered_sums[j].name
+				local entry = ordered_sums[j]
+				local name = entry.name
 				local point = prev[name]
 				local n = datum and datum[name]
 
@@ -200,7 +220,7 @@ function line_graph.render(surface, chunk, options)
 
 						local id = rendering.draw_line{
 							surface = surface,
-							color = series_colors[j],
+							color = series_colors[entry.color_index],
 							width = 1,
 							from = from_pos,
 							to = to_pos,
@@ -249,27 +269,45 @@ function line_graph.render_with_metadata(surface, chunk, options)
 	local label_color = colors_module.get_label_color()
 	local max_lines = colors_module.get_max_series()
 
-	-- Collect and sort series by sum
+	-- Collect and sort ALL series by sum first (for consistent color assignment)
+	local all_series = {}
+	local all_count = 0
+	for name, count in pairs(counts) do
+		all_count = all_count + 1
+		all_series[all_count] = {name = name, sum = sum[name] or 0}
+	end
+
+	if all_count == 0 then
+		return nil
+	end
+
+	table.sort(all_series, function(a, b)
+		if a.sum ~= b.sum then
+			return a.sum > b.sum
+		end
+		return a.name < b.name
+	end)
+
+	-- Build color index mapping (series name -> color index based on full sorted list)
+	local color_indices = {}
+	for i, entry in ipairs(all_series) do
+		color_indices[entry.name] = ((i - 1) % max_lines) + 1
+	end
+
+	-- Filter to selected series only, preserving sort order
 	local show_all = not selected_series or not next(selected_series)
 	local ordered_sums = {}
 	local datasets = 0
-	for name, count in pairs(counts) do
-		if show_all or selected_series[name] ~= false then
+	for _, entry in ipairs(all_series) do
+		if show_all or selected_series[entry.name] ~= false then
 			datasets = datasets + 1
-			ordered_sums[datasets] = {name = name, sum = sum[name] or 0}
+			ordered_sums[datasets] = {name = entry.name, sum = entry.sum, color_index = color_indices[entry.name]}
 		end
 	end
 
 	if datasets == 0 then
 		return nil
 	end
-
-	table.sort(ordered_sums, function(a, b)
-		if a.sum ~= b.sum then
-			return a.sum > b.sum
-		end
-		return a.name < b.name
-	end)
 
 	local to_draw = math.min(datasets, max_lines)
 
@@ -308,10 +346,11 @@ function line_graph.render_with_metadata(surface, chunk, options)
 	end
 
 	-- Calculate graph coordinates
-	local graph_left = 0.6
-	local graph_right = viewport_width / 32 - 1.5
+	-- graph_left must leave room for y-axis labels
+	local graph_left = 2.0
+	local graph_right = viewport_width / 32 - 0.5  -- Reduced right margin for better fill
 	local graph_top = 1
-	local graph_bottom = viewport_height / 32 - 1
+	local graph_bottom = viewport_height / 32 - 0.5  -- Reduced bottom margin
 
 	local graph_width = graph_right - graph_left
 	local graph_height = graph_bottom - graph_top
@@ -358,7 +397,7 @@ function line_graph.render_with_metadata(surface, chunk, options)
 		local text_id = rendering.draw_text{
 			text = label_text,
 			surface = surface,
-			target = {entity_pos.x + 0.5, entity_pos.y + grid_y},
+			target = {entity_pos.x + graph_left - 0.2, entity_pos.y + grid_y},
 			color = label_color,
 			scale = 1.0,
 			alignment = "right",
@@ -406,7 +445,8 @@ function line_graph.render_with_metadata(surface, chunk, options)
 			local next_points = {}
 
 			for j = to_draw, 1, -1 do
-				local name = ordered_sums[j].name
+				local entry = ordered_sums[j]
+				local name = entry.name
 				local point = prev[name]
 				local n = datum and datum[name]
 
@@ -430,7 +470,7 @@ function line_graph.render_with_metadata(surface, chunk, options)
 
 						local id = rendering.draw_line{
 							surface = surface,
-							color = series_colors[j],
+							color = series_colors[entry.color_index],
 							width = 1,
 							from = from_pos,
 							to = to_pos,

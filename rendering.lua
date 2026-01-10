@@ -24,7 +24,10 @@ function rendering_module.create_surface(surface_name, options)
 	-- Create or get the surface
 	local surface = game.get_surface(surface_name)
 	if not surface then
-		surface = game.create_surface(surface_name, {width = 2, height = 2})
+		surface = game.create_surface(surface_name, {
+			width = 1,
+			height = 1,
+		})
 	end
 	configure_surface_brightness(surface)
 
@@ -112,6 +115,93 @@ end
 ---@return number width, number height
 function rendering_module.get_viewport_size(surface_data)
 	return surface_data.viewport_width, surface_data.viewport_height
+end
+
+---Calculate camera position and zoom for proper chart display
+---This function computes the correct camera parameters to display a chart
+---at any widget size, making the library resolution-independent.
+---
+---The viewport dimensions define the "design size" used for graph layout.
+---The widget size is the actual GUI camera element dimensions.
+---This function calculates the zoom needed to fit the graph into the widget
+---and centers the camera on the graph area.
+---
+---@param chunk table The chunk with coord from allocate_chunk()
+---@param options table Camera calculation options
+---  - viewport_width: number? Design viewport width in pixels (default 900)
+---  - viewport_height: number? Design viewport height in pixels (default 700)
+---  - widget_width: number Actual camera widget width in pixels
+---  - widget_height: number Actual camera widget height in pixels
+---  - left_margin: number? Extra tiles on left for y-axis labels (default 0)
+---  - fit_mode: string? "fit" (default), "fill", or "stretch"
+---    - "fit": Zoom to show entire graph, may have letterboxing
+---    - "fill": Zoom to fill widget, graph may be cropped
+---    - "stretch": Independent x/y zoom (not recommended, distorts)
+---@return table camera_params {position, zoom, zoom_x?, zoom_y?, offset?}
+function rendering_module.get_camera_params(chunk, options)
+	local viewport_width = options.viewport_width or DEFAULT_VIEWPORT_WIDTH
+	local viewport_height = options.viewport_height or DEFAULT_VIEWPORT_HEIGHT
+	local widget_width = options.widget_width
+	local widget_height = options.widget_height
+	local left_margin = options.left_margin or 0  -- tiles for y-axis label overflow (graph layouts have built-in margins)
+	local fit_mode = options.fit_mode or "fit"
+
+	-- Calculate graph extent in tiles (including left margin for labels)
+	local graph_tiles_x = viewport_width / 32 + left_margin
+	local graph_tiles_y = viewport_height / 32
+
+	-- Effective viewport includes label margin
+	local effective_viewport_width = viewport_width + (left_margin * 32)
+
+	-- Calculate zoom needed for each axis
+	local zoom_x = widget_width / effective_viewport_width
+	local zoom_y = widget_height / viewport_height
+
+	-- Determine final zoom based on fit mode
+	local zoom
+	if fit_mode == "fill" then
+		zoom = math.max(zoom_x, zoom_y)
+	elseif fit_mode == "stretch" then
+		-- For stretch mode, we return both zoom factors
+		-- The caller would need to handle this specially
+		zoom = zoom_x  -- Primary zoom
+	else
+		-- Default "fit" mode - show entire graph
+		zoom = math.min(zoom_x, zoom_y)
+	end
+
+	-- Calculate camera center position
+	-- Shift left by half the label margin to include label area
+	-- The visible area will be from (-left_margin/2) to (graph_tiles_x - left_margin/2)
+	local base_center_x = (viewport_width / 32) / 2  -- center of original viewport
+	local center_x = chunk.coord.x + base_center_x - (left_margin / 2)
+	local center_y = chunk.coord.y + (viewport_height / 32) / 2
+
+	-- For non-uniform zoom (when aspect ratios differ), calculate offset
+	-- This tells the caller how much the graph is offset from widget center
+	local offset_x = 0
+	local offset_y = 0
+	if fit_mode == "fit" then
+		-- In fit mode with letterboxing, graph is centered
+		-- Calculate the unused space in pixels
+		local rendered_width = graph_tiles_x * 32 * zoom
+		local rendered_height = graph_tiles_y * 32 * zoom
+		offset_x = (widget_width - rendered_width) / 2
+		offset_y = (widget_height - rendered_height) / 2
+	end
+
+	return {
+		position = {x = center_x, y = center_y},
+		zoom = zoom,
+		-- Additional info for advanced use cases
+		zoom_x = zoom_x,
+		zoom_y = zoom_y,
+		offset = {x = offset_x, y = offset_y},
+		-- Graph bounds for reference (including label margin)
+		graph_tiles = {x = graph_tiles_x, y = graph_tiles_y},
+		-- Effective viewport (including label margin)
+		effective_viewport = {width = effective_viewport_width, height = viewport_height},
+	}
 end
 
 return rendering_module

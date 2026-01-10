@@ -38,9 +38,9 @@ function bar_chart.render(surface, chunk, options)
 
 	-- Graph coordinates
 	local graph_left = 1.5
-	local graph_right = viewport_width / 32 - 1
+	local graph_right = viewport_width / 32 - 0.5  -- Reduced right margin for better fill
 	local graph_top = 1
-	local graph_bottom = viewport_height / 32 - 2.25
+	local graph_bottom = viewport_height / 32 - 1.5  -- Reduced bottom margin
 
 	local graph_width = graph_right - graph_left
 	local graph_height = graph_bottom - graph_top
@@ -220,9 +220,9 @@ function bar_chart.render_with_metadata(surface, chunk, options)
 
 	-- Graph coordinates
 	local graph_left = 1.5
-	local graph_right = viewport_width / 32 - 1
+	local graph_right = viewport_width / 32 - 0.5  -- Reduced right margin for better fill
 	local graph_top = 1
-	local graph_bottom = viewport_height / 32 - 2.25
+	local graph_bottom = viewport_height / 32 - 1.5  -- Reduced bottom margin
 
 	local graph_width = graph_right - graph_left
 	local graph_height = graph_bottom - graph_top

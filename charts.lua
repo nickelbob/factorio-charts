@@ -18,6 +18,7 @@ charts.create_surface = rendering_module.create_surface
 charts.allocate_chunk = rendering_module.allocate_chunk
 charts.free_chunk = rendering_module.free_chunk
 charts.get_viewport_size = rendering_module.get_viewport_size
+charts.get_camera_params = rendering_module.get_camera_params
 
 -- Re-export chart rendering functions (basic, no interaction)
 charts.render_line_graph = line_graph.render

@@ -47,6 +47,29 @@ Test files are in `tests/` and registered in `tests/init.lua` (for factorio-test
 
 **TTL-Based Cleanup**: All rendered objects use `time_to_live` in ticks. No manual cleanup needed for graph lines/text - they auto-expire.
 
+**Resolution Independence**: Use `get_camera_params()` to calculate correct camera position and zoom for any widget size. The viewport dimensions (default 900x700) define the graph layout in tile space. The function computes the zoom needed to fit the graph into the actual widget dimensions:
+```lua
+local camera = charts.get_camera_params(chunk, {
+    viewport_width = 900,   -- Design size (graph layout)
+    viewport_height = 700,
+    widget_width = actual_widget.width,   -- Actual GUI element size
+    widget_height = actual_widget.height,
+    fit_mode = "fit",  -- "fit", "fill", or "stretch"
+})
+-- Returns: {position = {x, y}, zoom = number, offset = {x, y}, ...}
+```
+
+**Camera Widget Sizing Trade-off**: Factorio does not expose the actual rendered size of GUI elements at runtime. This creates a trade-off when sizing camera widgets:
+
+1. **Fixed size camera** (recommended for consistency): Set explicit `width` and `height` on the camera widget. The chart will look identical regardless of window size or fullscreen/windowed mode. May leave empty space in larger windows.
+   ```lua
+   style_mods = { width = 900, height = 700 }
+   ```
+
+2. **Stretchable camera**: Use `horizontally_stretchable = true` with `minimal_width`. The camera fills available space, but since you can't query the actual size, you must calculate zoom from fixed dimensions. This causes the chart to appear proportionally smaller in larger windows (more surface area visible at the same zoom level).
+
+For consistent appearance across all screen modes, use fixed-size camera widgets.
+
 ### Usage Pattern (Basic)
 
 ```lua
@@ -54,7 +77,21 @@ local charts = require("__factorio-charts__.charts")
 local surface_data = charts.create_surface("my-surface")  -- once in on_init
 local chunk = charts.allocate_chunk(surface_data)
 charts.render_line_graph(surface_data.surface, chunk, {...})
--- Display via GUI camera widget pointing at chunk.coord
+
+-- Calculate camera params for resolution-independent display
+local camera = charts.get_camera_params(chunk, {
+    widget_width = 900,  -- Your actual camera widget dimensions
+    widget_height = 700,
+})
+
+-- Create GUI camera widget with calculated params
+local camera_widget = parent.add{
+    type = "camera",
+    position = camera.position,
+    surface_index = surface_data.surface.index,
+    zoom = camera.zoom,
+}
+
 charts.free_chunk(surface_data, chunk)  -- when done
 ```
 
