@@ -410,4 +410,100 @@ function bar_chart.render_with_metadata(surface, chunk, options)
 	return line_ids, metadata
 end
 
+---Render stacked bars with overlay button configurations for GUI integration
+---This is a higher-level function that combines rendering, hit region creation,
+---and overlay button generation into a single call.
+---
+---@param surface LuaSurface The rendering surface
+---@param chunk table The chunk with coord
+---@param options table Rendering and overlay options
+---  - deliveries: table[] Array of data objects with phase durations
+---  - phase_colors: table {[phase_name]: color}
+---  - phase_order: string[] Order of phases from bottom to top
+---  - hatched_phases: table? {[phase_name]: true} Phases to draw with diagonal stripes
+---  - ttl: number? Time to live in ticks (default 360)
+---  - viewport_width: number? Viewport width in pixels (default 900)
+---  - viewport_height: number? Viewport height in pixels (default 700)
+---  - camera_position: table {x, y} Camera center position (with any visual offset applied)
+---  - camera_zoom: number Camera zoom level
+---  - widget_size: table {width, height} Camera widget size in pixels
+---  - get_tooltip: function?(bar_index, phase_name, duration, delivery) -> string Optional tooltip generator
+---@return LuaRenderObject[]? line_ids Array of render object IDs
+---@return table[]? button_configs Array of {region_id, style_mods, region, tooltip}
+---@return table? metadata Bar metadata for advanced use
+function bar_chart.render_with_overlays(surface, chunk, options)
+	if not chunk or not chunk.coord then
+		return nil
+	end
+
+	local camera_position = options.camera_position
+	local camera_zoom = options.camera_zoom
+	local widget_size = options.widget_size
+	local get_tooltip = options.get_tooltip
+
+	if not camera_position or not camera_zoom or not widget_size then
+		return nil
+	end
+
+	-- Render the chart and get metadata
+	local line_ids, metadata = bar_chart.render_with_metadata(surface, chunk, options)
+	if not line_ids or not metadata then
+		return nil
+	end
+
+	-- Create hit regions from metadata
+	local interaction = require("interaction")
+	local hit_regions = interaction.create_bar_chart_hit_regions(chunk, metadata)
+
+	-- Generate overlay button configs
+	local button_configs = {}
+	local pixels_per_tile = 32 * camera_zoom
+	local center_x = widget_size.width / 2
+	local center_y = widget_size.height / 2
+
+	for _, region in ipairs(hit_regions) do
+		local bounds = region.tile_bounds
+
+		-- Calculate screen position for region bounds
+		local left_screen = center_x + (bounds.left - camera_position.x) * pixels_per_tile
+		local top_screen = center_y + (bounds.top - camera_position.y) * pixels_per_tile
+		local right_screen = center_x + (bounds.right - camera_position.x) * pixels_per_tile
+		local bottom_screen = center_y + (bounds.bottom - camera_position.y) * pixels_per_tile
+
+		local width = math.max(1, math.floor(right_screen - left_screen))
+		local height = math.max(1, math.floor(bottom_screen - top_screen))
+		local left_margin = math.floor(left_screen)
+		local top_margin = math.floor(top_screen)
+
+		-- Only include buttons that are at least partially visible
+		if left_margin + width > 0 and left_margin < widget_size.width and
+		   top_margin + height > 0 and top_margin < widget_size.height then
+
+			-- Generate tooltip if function provided
+			local tooltip = nil
+			if get_tooltip then
+				local bar_index = region.data.bar_index
+				local phase_name = region.data.phase_name
+				local duration = region.data.duration
+				local delivery = options.deliveries[bar_index]
+				tooltip = get_tooltip(bar_index, phase_name, duration, delivery)
+			end
+
+			button_configs[#button_configs + 1] = {
+				region_id = region.id,
+				style_mods = {
+					left_margin = left_margin,
+					top_margin = top_margin,
+					width = width,
+					height = height,
+				},
+				region = region,
+				tooltip = tooltip,
+			}
+		end
+	end
+
+	return line_ids, button_configs, metadata
+end
+
 return bar_chart

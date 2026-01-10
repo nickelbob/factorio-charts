@@ -28,6 +28,9 @@ charts.render_stacked_bars = bar_chart.render
 charts.render_line_graph_with_metadata = line_graph.render_with_metadata
 charts.render_stacked_bars_with_metadata = bar_chart.render_with_metadata
 
+-- High-level render with overlay buttons (combines render + hit regions + button generation)
+charts.render_stacked_bars_with_overlays = bar_chart.render_with_overlays
+
 -- Re-export color utilities
 charts.get_series_colors = colors.get_series_colors
 charts.get_series_color = colors.get_series_color
