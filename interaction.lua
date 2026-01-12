@@ -324,6 +324,42 @@ end
 
 ---Generate overlay button configurations for hit regions
 ---This returns data suitable for building GUI buttons
+---
+---IMPORTANT: Factorio GUI uses flow-based layout, not absolute positioning.
+---To position multiple buttons at arbitrary locations over a camera:
+---
+---1. Add a container flow inside the camera with direction="vertical",
+---   sized to match the camera, with padding=0 and vertical_spacing=0:
+---   ```lua
+---   local container = camera.add{type = "flow", direction = "vertical"}
+---   container.style.width = CAMERA_WIDTH
+---   container.style.height = CAMERA_HEIGHT
+---   container.style.padding = 0
+---   container.style.vertical_spacing = 0
+---   ```
+---
+---2. Add buttons to the container using the negative bottom_margin trick:
+---   ```lua
+---   for _, config in ipairs(button_configs) do
+---       local left = config.style_mods.left_margin + OFFSET_X
+---       local top = config.style_mods.top_margin + OFFSET_Y
+---       local width = config.style_mods.width
+---       local height = config.style_mods.height
+---       local btn = container.add{type = "button", ...}
+---       btn.style.left_margin = left
+---       btn.style.top_margin = top
+---       btn.style.bottom_margin = -top - height  -- Makes button take zero vertical space!
+---       btn.style.width = width
+---       btn.style.height = height
+---   end
+---   ```
+---   The negative bottom_margin cancels out the top_margin + height, so each
+---   button takes zero net vertical space. This allows all buttons to position
+---   from the top of the container independently.
+---
+---You may need to apply a calibration offset (OFFSET_X, OFFSET_Y) to align
+---buttons with the rendered chart elements.
+---
 ---@param camera_position table Camera center in tile coordinates
 ---@param camera_zoom number Zoom level
 ---@param widget_size table {width, height} Camera widget size in pixels

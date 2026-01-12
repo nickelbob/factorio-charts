@@ -43,8 +43,18 @@ end
 
 ---Allocate a chunk for graph rendering
 ---@param surface_data table The surface data from create_surface
----@return table chunk {coord, light_ids}
-function rendering_module.allocate_chunk(surface_data)
+---@param options table? Optional settings {viewport_width, viewport_height}
+---@return table chunk {coord, light_ids, tiles_width, tiles_height}
+function rendering_module.allocate_chunk(surface_data, options)
+	options = options or {}
+	-- Use provided viewport dimensions, or fall back to surface_data defaults
+	local viewport_width = options.viewport_width or surface_data.viewport_width or DEFAULT_VIEWPORT_WIDTH
+	local viewport_height = options.viewport_height or surface_data.viewport_height or DEFAULT_VIEWPORT_HEIGHT
+
+	-- Calculate required tile coverage (add margin for graph axes/labels)
+	local tiles_width = math.ceil(viewport_width / 32) + 2
+	local tiles_height = math.ceil(viewport_height / 32) + 2
+
 	local chunk_coord
 
 	local length = #surface_data.chunk_freelist
@@ -52,9 +62,11 @@ function rendering_module.allocate_chunk(surface_data)
 		chunk_coord = surface_data.chunk_freelist[length]
 		surface_data.chunk_freelist[length] = nil
 	else
+		-- Use larger spacing for chunks based on viewport size
+		local chunk_spacing = math.max(tiles_width, tiles_height, 32)
 		chunk_coord = {
-			x = surface_data.next_chunk_x * 32,
-			y = surface_data.next_chunk_y * 32
+			x = surface_data.next_chunk_x * chunk_spacing,
+			y = surface_data.next_chunk_y * chunk_spacing
 		}
 		-- Diagonal chunk allocation pattern
 		if surface_data.next_chunk_x == 0 then
@@ -65,11 +77,11 @@ function rendering_module.allocate_chunk(surface_data)
 			surface_data.next_chunk_y = surface_data.next_chunk_y + 1
 		end
 
-		-- Create dark tiles for graph background
+		-- Create dark tiles for graph background (sized to viewport)
 		local tiles = {}
 		local i = 1
-		for x = chunk_coord.x, chunk_coord.x + 31 do
-			for y = chunk_coord.y, chunk_coord.y + 31 do
+		for x = chunk_coord.x, chunk_coord.x + tiles_width - 1 do
+			for y = chunk_coord.y, chunk_coord.y + tiles_height - 1 do
 				tiles[i] = {name = "lab-dark-1", position = {x = x, y = y}}
 				i = i + 1
 			end
@@ -78,7 +90,10 @@ function rendering_module.allocate_chunk(surface_data)
 	end
 
 	-- Add multiple bright lights to illuminate the graph area
+	-- Adjust light positions based on tile coverage
 	local light_ids = {}
+	local light_spacing_x = tiles_width / 3
+	local light_spacing_y = tiles_height / 3
 	for lx = 0, 2 do
 		for ly = 0, 2 do
 			local light_id = rendering.draw_light{
@@ -86,14 +101,57 @@ function rendering_module.allocate_chunk(surface_data)
 				scale = 50,
 				intensity = 10,
 				minimum_darkness = 0,
-				target = {chunk_coord.x + 5 + lx * 10, chunk_coord.y + 3 + ly * 7},
+				target = {chunk_coord.x + light_spacing_x * (lx + 0.5), chunk_coord.y + light_spacing_y * (ly + 0.5)},
 				surface = surface_data.surface,
 			}
 			table.insert(light_ids, light_id)
 		end
 	end
 
-	return {coord = chunk_coord, light_ids = light_ids}
+	return {coord = chunk_coord, light_ids = light_ids, tiles_width = tiles_width, tiles_height = tiles_height}
+end
+
+---Ensure a chunk has sufficient tile coverage for the given viewport
+---Use this to upgrade existing chunks that may have been allocated with smaller dimensions
+---@param surface_data table The surface data
+---@param chunk table The chunk to ensure coverage for
+---@param options table {viewport_width, viewport_height}
+function rendering_module.ensure_tile_coverage(surface_data, chunk, options)
+	if not chunk or not chunk.coord then return end
+
+	local viewport_width = options.viewport_width or surface_data.viewport_width or DEFAULT_VIEWPORT_WIDTH
+	local viewport_height = options.viewport_height or surface_data.viewport_height or DEFAULT_VIEWPORT_HEIGHT
+
+	-- Calculate required tile coverage
+	local tiles_width = math.ceil(viewport_width / 32) + 2
+	local tiles_height = math.ceil(viewport_height / 32) + 2
+
+	-- Check if we need to expand (only if chunk doesn't already have sufficient coverage)
+	local current_width = chunk.tiles_width or 32
+	local current_height = chunk.tiles_height or 32
+
+	if tiles_width <= current_width and tiles_height <= current_height then
+		return  -- Already have sufficient coverage
+	end
+
+	-- Expand to the larger of current and required
+	local new_width = math.max(tiles_width, current_width)
+	local new_height = math.max(tiles_height, current_height)
+
+	-- Create dark tiles for the expanded area
+	local tiles = {}
+	local i = 1
+	for x = chunk.coord.x, chunk.coord.x + new_width - 1 do
+		for y = chunk.coord.y, chunk.coord.y + new_height - 1 do
+			tiles[i] = {name = "lab-dark-1", position = {x = x, y = y}}
+			i = i + 1
+		end
+	end
+	surface_data.surface.set_tiles(tiles)
+
+	-- Update chunk's recorded tile size
+	chunk.tiles_width = new_width
+	chunk.tiles_height = new_height
 end
 
 ---Free a chunk back to the pool

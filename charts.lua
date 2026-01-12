@@ -16,6 +16,7 @@ local events = require("events")
 -- Re-export rendering functions
 charts.create_surface = rendering_module.create_surface
 charts.allocate_chunk = rendering_module.allocate_chunk
+charts.ensure_tile_coverage = rendering_module.ensure_tile_coverage
 charts.free_chunk = rendering_module.free_chunk
 charts.get_viewport_size = rendering_module.get_viewport_size
 charts.get_camera_params = rendering_module.get_camera_params
