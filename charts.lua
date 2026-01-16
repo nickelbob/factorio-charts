@@ -1,5 +1,8 @@
 -- Factorio Charts - Main entry point
 -- A reusable charting library for Factorio mods
+--
+-- Graph rendering technique inspired by factorio-timeseries by Kirk McDonald
+-- https://mods.factorio.com/mod/timeseries (MIT License)
 
 local charts = {}
 
