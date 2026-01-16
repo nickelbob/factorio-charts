@@ -3,6 +3,9 @@
 
 local time_series = {}
 
+local line_graph = require("line-graph")
+local interaction = require("interaction")
+
 ---Create a new interval set from definitions
 ---@param defs table[] Array of {name, ticks, steps, length} definitions
 ---  - name: Display name for this interval (e.g., "5s", "1m", "1h")
@@ -127,6 +130,83 @@ function time_series.clear(intervals)
 		interval.sum = {}
 		interval.counts = {}
 	end
+end
+
+---Render a time series interval as a line graph
+---Handles render lifecycle: cleanup old renders, render new, generate hit regions, cache results
+---@param surface LuaSurface The rendering surface
+---@param intervals table[] The interval set created by create_interval_set
+---@param interval_index number Which interval to render (1-based)
+---@param options table Rendering options
+---  - selected_series: table? {[name]: bool} Filter which series to show
+---  - y_range: table? {min, max} Fixed Y-axis range (nil for auto-scale)
+---  - label_format: string? "percent" (default) or "time"
+---  - viewport_width: number? Viewport width in pixels (default 900)
+---  - viewport_height: number? Viewport height in pixels (default 700)
+---  - point_radius: number? Hit region radius around points (default 0.3)
+---@return table? ordered_sums Array of {name, sum} sorted by sum descending
+---@return table? hit_regions Hit regions for interaction
+function time_series.render(surface, intervals, interval_index, options)
+	local interval = intervals[interval_index]
+	if not interval or not interval.chunk then
+		return nil, nil
+	end
+
+	options = options or {}
+
+	-- Avoid re-render on same tick
+	if interval.last_rendered_tick == game.tick then
+		return interval.ordered_sums, interval.hit_regions
+	end
+	interval.last_rendered_tick = game.tick
+
+	-- Destroy old lines before drawing new ones
+	if interval.line_ids then
+		for _, render_obj in ipairs(interval.line_ids) do
+			if render_obj.valid then
+				render_obj.destroy()
+			end
+		end
+	end
+	interval.line_ids = {}
+
+	-- Calculate TTL based on interval's tick rate (at least 6 seconds)
+	local ttl = math.max(interval.ticks * 2, 360)
+
+	-- Render the line graph with metadata for interaction
+	local ordered_sums, line_ids, metadata = line_graph.render_with_metadata(surface, interval.chunk, {
+		data = interval.data,
+		index = interval.index,
+		length = interval.length,
+		counts = interval.counts,
+		sum = interval.sum,
+		y_range = options.y_range,
+		label_format = options.label_format or "percent",
+		selected_series = options.selected_series,
+		ttl = ttl,
+		viewport_width = options.viewport_width,
+		viewport_height = options.viewport_height,
+	})
+
+	if line_ids then
+		interval.line_ids = line_ids
+	end
+
+	-- Generate hit regions from metadata
+	local hit_regions = nil
+	if metadata then
+		hit_regions = interaction.create_line_graph_hit_regions(
+			interval.chunk,
+			metadata,
+			{point_radius = options.point_radius or 0.3}
+		)
+	end
+
+	-- Cache for re-render checks
+	interval.ordered_sums = ordered_sums
+	interval.hit_regions = hit_regions
+
+	return ordered_sums, hit_regions
 end
 
 return time_series

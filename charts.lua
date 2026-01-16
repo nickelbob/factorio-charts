@@ -99,5 +99,6 @@ charts.add_datapoint = time_series.add_datapoint
 charts.get_series_average = time_series.get_average
 charts.get_all_averages = time_series.get_all_averages
 charts.clear_time_series = time_series.clear
+charts.render_time_series = time_series.render
 
 return charts

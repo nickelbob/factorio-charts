@@ -157,15 +157,18 @@ local interval_defs = {
 }
 local intervals = charts.create_time_series(interval_defs)
 
+-- Allocate chunk for rendering (store in interval)
+intervals[1].chunk = charts.allocate_chunk(surface_data)
+
 -- Add data each tick - automatically cascades to coarser intervals
 charts.add_datapoint(intervals, {series1 = 50, series2 = 75})
 
--- Render a specific interval
-charts.render_line_graph(surface, chunk, {
-    data = intervals[2].data,
-    index = intervals[2].index,
-    length = intervals[2].length,
-    counts = intervals[2].counts,
-    sum = intervals[2].sum,
+-- Render a specific interval (handles lifecycle: cleanup, render, hit regions, caching)
+local ordered_sums, hit_regions = charts.render_time_series(surface, intervals, 1, {
+    selected_series = nil,  -- or {series1 = true, series2 = false}
+    y_range = {0, 100},     -- fixed range, or nil for auto-scale
+    label_format = "percent", -- or "time"
+    viewport_width = 900,
+    viewport_height = 700,
 })
 ```
