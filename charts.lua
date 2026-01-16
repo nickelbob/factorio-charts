@@ -24,6 +24,10 @@ charts.ensure_tile_coverage = rendering_module.ensure_tile_coverage
 charts.free_chunk = rendering_module.free_chunk
 charts.get_viewport_size = rendering_module.get_viewport_size
 charts.get_camera_params = rendering_module.get_camera_params
+charts.setup_camera_widget = rendering_module.setup_camera_widget
+charts.create_render_state = rendering_module.create_render_state
+charts.destroy_render_state = rendering_module.destroy_render_state
+charts.clear_render_state = rendering_module.clear_render_state
 
 -- Re-export chart rendering functions (basic, no interaction)
 charts.render_line_graph = line_graph.render

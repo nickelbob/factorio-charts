@@ -262,4 +262,106 @@ function rendering_module.get_camera_params(chunk, options)
 	}
 end
 
+---Set up a camera widget to display a chart and return camera info for hit-testing
+---This is a convenience function that combines get_camera_params with camera element setup.
+---
+---@param camera_element LuaGuiElement The camera GUI element to configure
+---@param surface LuaSurface The chart rendering surface
+---@param chunk table The chunk from allocate_chunk()
+---@param options table Setup options
+---  - widget_width: number Camera widget width in pixels
+---  - widget_height: number Camera widget height in pixels
+---  - display_scale: number? Player's display_scale (default 1.0)
+---  - position_offset: table? {x, y} Manual position adjustment (default {0, 0})
+---@return table camera_info {position, zoom, widget_width, widget_height} for hit-testing
+function rendering_module.setup_camera_widget(camera_element, surface, chunk, options)
+	if not camera_element or not chunk or not chunk.coord then
+		return nil
+	end
+
+	local widget_width = options.widget_width
+	local widget_height = options.widget_height
+	local display_scale = options.display_scale or 1.0
+	local position_offset = options.position_offset or {x = 0, y = 0}
+
+	-- Get camera parameters
+	local camera_params = rendering_module.get_camera_params(chunk, {
+		widget_width = widget_width,
+		widget_height = widget_height,
+	})
+
+	-- Apply display_scale correction to zoom
+	local zoom = display_scale / 2
+
+	-- Apply position offset
+	local position = {
+		x = camera_params.position.x + position_offset.x,
+		y = camera_params.position.y + position_offset.y,
+	}
+
+	-- Configure the camera element
+	camera_element.position = position
+	camera_element.surface_index = surface.index
+	camera_element.zoom = zoom
+
+	-- Return camera info for hit-testing
+	return {
+		position = position,
+		zoom = zoom,
+		widget_width = widget_width,
+		widget_height = widget_height,
+	}
+end
+
+---Create a simple render state for non-time-series charts
+---Use this when you need chunk + line_ids storage without the full time series machinery.
+---
+---@param surface_data table The surface data from create_surface()
+---@param options table? Optional {viewport_width, viewport_height}
+---@return table render_state {chunk, line_ids, last_rendered_tick}
+function rendering_module.create_render_state(surface_data, options)
+	local chunk = rendering_module.allocate_chunk(surface_data, options)
+	return {
+		chunk = chunk,
+		line_ids = {},
+		last_rendered_tick = nil,
+	}
+end
+
+---Destroy a render state and free its resources
+---@param surface_data table The surface data
+---@param render_state table The render state to destroy
+function rendering_module.destroy_render_state(surface_data, render_state)
+	if not render_state then return end
+
+	-- Cleanup render objects
+	if render_state.line_ids then
+		for _, render_obj in ipairs(render_state.line_ids) do
+			if render_obj.valid then
+				render_obj.destroy()
+			end
+		end
+		render_state.line_ids = {}
+	end
+
+	-- Free chunk back to pool
+	if render_state.chunk then
+		rendering_module.free_chunk(surface_data, render_state.chunk)
+		render_state.chunk = nil
+	end
+end
+
+---Clear render objects from a render state (for re-rendering)
+---@param render_state table The render state
+function rendering_module.clear_render_state(render_state)
+	if not render_state or not render_state.line_ids then return end
+
+	for _, render_obj in ipairs(render_state.line_ids) do
+		if render_obj.valid then
+			render_obj.destroy()
+		end
+	end
+	render_state.line_ids = {}
+end
+
 return rendering_module
