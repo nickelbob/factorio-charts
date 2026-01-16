@@ -15,6 +15,7 @@ local interaction = require("interaction")
 local animation = require("animation")
 local interactive_chart = require("interactive-chart")
 local events = require("events")
+local time_series = require("time-series")
 
 -- Re-export rendering functions
 charts.create_surface = rendering_module.create_surface
@@ -91,5 +92,12 @@ charts.remove_animation = events.remove_animation
 charts.is_animation_running = events.is_animation_running
 charts.get_animations = events.get_animations
 charts.clear_animations = events.clear_animations
+
+-- Time series data management
+charts.create_time_series = time_series.create_interval_set
+charts.add_datapoint = time_series.add_datapoint
+charts.get_series_average = time_series.get_average
+charts.get_all_averages = time_series.get_all_averages
+charts.clear_time_series = time_series.clear
 
 return charts

@@ -26,6 +26,7 @@ Test files are in `tests/` and registered in `tests/init.lua` (for factorio-test
 - `bar-chart.lua` - Stacked bar chart rendering with optional hatched phases
 - `colors.lua` - 12-color palette for series, plus grid/label colors
 - `format.lua` - Label formatting utilities (time, percentages)
+- `time-series.lua` - Multi-resolution time series with cascading aggregation
 
 **Interactive Features:**
 - `interaction.lua` - Hit testing, coordinate transforms, highlight/tooltip creation
@@ -144,4 +145,27 @@ local anim = charts.animation.create({
 })
 -- Register tick handler: charts.register_events({})
 -- Or manually: charts.animation.update_all(animations_table, current_tick)
+```
+
+**Time Series:** Multi-resolution data storage with cascading aggregation (like RRDtool):
+```lua
+-- Define intervals: each level aggregates 'steps' samples from the previous
+local interval_defs = {
+    {name = "5s",  ticks = 1,   steps = 6,   length = 300},  -- 1 sample/tick, 5 min buffer
+    {name = "1m",  ticks = 6,   steps = 10,  length = 600},  -- avg of 6 samples, 10 min buffer
+    {name = "10m", ticks = 60,  steps = nil, length = 600},  -- avg of 10 samples, 100 min buffer
+}
+local intervals = charts.create_time_series(interval_defs)
+
+-- Add data each tick - automatically cascades to coarser intervals
+charts.add_datapoint(intervals, {series1 = 50, series2 = 75})
+
+-- Render a specific interval
+charts.render_line_graph(surface, chunk, {
+    data = intervals[2].data,
+    index = intervals[2].index,
+    length = intervals[2].length,
+    counts = intervals[2].counts,
+    sum = intervals[2].sum,
+})
 ```
