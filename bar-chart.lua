@@ -5,7 +5,7 @@ local colors_module = require("colors")
 local format_module = require("format")
 
 -- Constants
-local STRIPE_SPACING = 0.15
+local STRIPE_SPACING = 0.4  -- Increased from 0.15 for better performance
 local STRIPE_COLOR = {r = 0, g = 0, b = 0, a = 0.4}
 local MAX_BAR_WIDTH = 1.5
 local MAX_TOTAL_PADDING = 1.1
