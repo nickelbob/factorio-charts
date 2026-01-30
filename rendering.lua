@@ -271,8 +271,9 @@ end
 ---@param options table Setup options
 ---  - widget_width: number Camera widget width in pixels
 ---  - widget_height: number Camera widget height in pixels
----  - display_scale: number? Player's display_scale (default 1.0)
+---  - display_scale: number? Player's display_scale (default 1.0, used for fallback zoom calculation)
 ---  - position_offset: table? {x, y} Manual position adjustment (default {0, 0})
+---  - zoom_override: number? Explicit zoom value (recommended: calculate based on display_scale)
 ---@return table camera_info {position, zoom, widget_width, widget_height} for hit-testing
 function rendering_module.setup_camera_widget(camera_element, surface, chunk, options)
 	if not camera_element or not chunk or not chunk.coord then
@@ -290,8 +291,10 @@ function rendering_module.setup_camera_widget(camera_element, surface, chunk, op
 		widget_height = widget_height,
 	})
 
-	-- Apply display_scale correction to zoom
-	local zoom = display_scale / 2
+	-- Use explicit zoom if provided, otherwise fall back to display_scale-based calculation
+	-- Note: The fallback formula (display_scale / 2) may not work well across all resolutions.
+	-- Callers should calculate and pass zoom_override based on their specific needs.
+	local zoom = options.zoom_override or (display_scale / 2)
 
 	-- Apply position offset
 	local position = {
