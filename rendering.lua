@@ -31,6 +31,11 @@ function rendering_module.create_surface(surface_name, options)
 	end
 	configure_surface_brightness(surface)
 
+	-- Hide the surface from all forces' map view
+	for _, force in pairs(game.forces) do
+		force.set_surface_hidden(surface, true)
+	end
+
 	return {
 		surface = surface,
 		viewport_width = viewport_width,
