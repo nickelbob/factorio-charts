@@ -333,7 +333,9 @@ function interactive_chart.format_tooltip(state, region)
 
 	if region.type == "data_point" then
 		lines[1] = region.data.series_name
-		if state.options.label_format == "time" then
+		if type(state.options.label_format) == "function" then
+			lines[2] = state.options.label_format(region.data.value)
+		elseif state.options.label_format == "time" then
 			lines[2] = format_module.time_detailed(region.data.value)
 		else
 			lines[2] = format_module.percent_label(region.data.value)

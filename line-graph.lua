@@ -157,7 +157,9 @@ local function render_internal(surface, chunk, options, collect_metadata)
 
 		-- Y-axis label
 		local label_text
-		if label_format == "time" then
+		if type(label_format) == "function" then
+			label_text = label_format(grid_value)
+		elseif label_format == "time" then
 			label_text = format_module.time_label(grid_value)
 		else
 			label_text = format_module.percent_label(grid_value)
