@@ -19,24 +19,50 @@ Test files are in `tests/` and registered in `tests/init.lua` (for factorio-test
 
 ### Module Structure
 
-**Core Rendering:**
-- `charts.lua` - Main entry point, re-exports all public API functions
-- `rendering.lua` - Surface and chunk management (allocation, freelist, lighting)
-- `line-graph.lua` - Multi-series line graph rendering with ring buffer support
-- `bar-chart.lua` - Stacked bar chart rendering with optional hatched phases
-- `colors.lua` - 12-color palette for series, plus grid/label colors
-- `format.lua` - Label formatting utilities (time, percentages)
-- `time-series.lua` - Multi-resolution time series with cascading aggregation
+```
+factorio-charts/
+├── charts.lua                      Main entry point (sub-table API + flat aliases)
+├── control.lua                     Factorio requirement (minimal)
+├── core/
+│   ├── rendering.lua               Surface and chunk management
+│   ├── colors.lua                  12-color series palette
+│   └── format.lua                  Label formatting utilities
+├── charts/
+│   ├── line-graph.lua              Multi-series line graph rendering
+│   ├── bar-chart.lua               Stacked bar chart rendering
+│   └── time-series.lua             Multi-resolution time series with cascading aggregation
+├── interaction/
+│   ├── interaction.lua             Hit testing, coordinate transforms, highlights/tooltips
+│   ├── animation.lua               Easing functions, interpolation, animation lifecycle
+│   ├── interactive-chart.lua       High-level wrapper with state management
+│   └── events.lua                  Event handler registration for animation processing
+└── tests/
+```
 
-**Interactive Features:**
-- `interaction.lua` - Hit testing, coordinate transforms, highlight/tooltip creation
-- `animation.lua` - Easing functions, interpolation, animation lifecycle
-- `interactive-chart.lua` - High-level wrapper with state management
-- `events.lua` - Event handler registration for animation processing
+**Grouping rationale:**
+- **`core/`** — Shared foundations with no chart-type deps (surface mgmt, colors, formatting)
+- **`charts/`** — Chart type implementations (depend on core/, produce rendered output)
+- **`interaction/`** — User interaction: hit testing, animation, high-level interactive wrapper, events
+
+### Sub-table API
+
+`charts.lua` exposes functions via named sub-tables. Flat aliases (e.g., `charts.create_surface()`) are preserved for backward compatibility.
+
+| Sub-table | Purpose |
+|-----------|---------|
+| `charts.surface` | Surface/chunk management: `create`, `allocate_chunk`, `free_chunk`, `get_camera_params`, etc. |
+| `charts.render` | Chart rendering: `line_graph`, `stacked_bars`, `time_series`, `*_with_metadata`, `*_with_overlays` |
+| `charts.colors` | Color palette: `get_series_colors`, `get_series_color`, `get_grid_color`, `get_label_color`, `get_max_series` |
+| `charts.format` | Formatting: `time_label`, `percent_label`, `time_detailed` |
+| `charts.interaction` | Hit testing, coordinate transforms, highlights, tooltips, overlay buttons |
+| `charts.animation` | Easing, interpolation, animation lifecycle (module re-exported directly) |
+| `charts.interactive` | High-level interactive chart wrappers: `create_line_graph`, `on_hover`, `destroy`, etc. |
+| `charts.events` | Event registration for animation: `register`, `unregister`, `add_animation`, etc. |
+| `charts.time_series` | Time series data: `create`, `add_datapoint`, `get_average`, `clear` |
 
 ### Key Concepts
 
-**Surface Management**: Charts are rendered on hidden Factorio surfaces. `create_surface()` initializes one, then `allocate_chunk()` gives you a 32x32 tile area with lighting. Chunks are reused via a freelist when freed.
+**Surface Management**: Charts are rendered on hidden Factorio surfaces. `charts.surface.create()` initializes one, then `charts.surface.allocate_chunk()` gives you a 32x32 tile area with lighting. Chunks are reused via a freelist when freed.
 
 **Ring Buffer Data Format**: Line graphs expect data in a ring buffer format:
 - `data`: array of `{[series_name]: value}` tables
@@ -48,9 +74,9 @@ Test files are in `tests/` and registered in `tests/init.lua` (for factorio-test
 
 **TTL-Based Cleanup**: All rendered objects use `time_to_live` in ticks. No manual cleanup needed for graph lines/text - they auto-expire.
 
-**Resolution Independence**: Use `get_camera_params()` to calculate correct camera position and zoom for any widget size. The viewport dimensions (default 900x700) define the graph layout in tile space. The function computes the zoom needed to fit the graph into the actual widget dimensions:
+**Resolution Independence**: Use `charts.surface.get_camera_params()` to calculate correct camera position and zoom for any widget size. The viewport dimensions (default 900x700) define the graph layout in tile space. The function computes the zoom needed to fit the graph into the actual widget dimensions:
 ```lua
-local camera = charts.get_camera_params(chunk, {
+local camera = charts.surface.get_camera_params(chunk, {
     viewport_width = 900,   -- Design size (graph layout)
     viewport_height = 700,
     widget_width = actual_widget.width,   -- Actual GUI element size
@@ -75,12 +101,12 @@ For consistent appearance across all screen modes, use fixed-size camera widgets
 
 ```lua
 local charts = require("__factorio-charts__.charts")
-local surface_data = charts.create_surface("my-surface")  -- once in on_init
-local chunk = charts.allocate_chunk(surface_data)
-charts.render_line_graph(surface_data.surface, chunk, {...})
+local surface_data = charts.surface.create("my-surface")  -- once in on_init
+local chunk = charts.surface.allocate_chunk(surface_data)
+charts.render.line_graph(surface_data.surface, chunk, {...})
 
 -- Calculate camera params for resolution-independent display
-local camera = charts.get_camera_params(chunk, {
+local camera = charts.surface.get_camera_params(chunk, {
     widget_width = 900,  -- Your actual camera widget dimensions
     widget_height = 700,
 })
@@ -93,46 +119,55 @@ local camera_widget = parent.add{
     zoom = camera.zoom,
 }
 
-charts.free_chunk(surface_data, chunk)  -- when done
+charts.surface.free_chunk(surface_data, chunk)  -- when done
 ```
+
+Note: Flat aliases still work (e.g., `charts.create_surface()`, `charts.render_line_graph()`).
 
 ### Interactive Charts
 
 The library provides two approaches for adding hover/click interactions:
 
-**High-Level (Recommended):** Use `interactive-chart.lua` wrapper for automatic state management:
+**High-Level (Recommended):** Use `charts.interactive` for automatic state management:
 ```lua
-local state = charts.create_interactive_line_graph(surface, chunk, {
+local state = charts.interactive.create_line_graph(surface, chunk, {
     data = ring_buffer, index = idx, length = len,
     counts = counts, sum = sums,
     on_hover = function(region, state) ... end,
     on_click = function(region, button, state) ... end,
 })
--- Handle hover: charts.chart_on_hover(state, region_id, player)
--- Update data: charts.update_interactive_line_graph(state, new_options)
--- Cleanup: charts.destroy_interactive_chart(state)
+-- Handle hover: charts.interactive.on_hover(state, region_id, player)
+-- Update data: charts.interactive.update_line_graph(state, new_options)
+-- Cleanup: charts.interactive.destroy(state)
 ```
 
-**Low-Level:** Use primitives directly for full control:
+**Low-Level:** Use `charts.interaction` primitives directly for full control:
 ```lua
 -- Render with metadata
-local ordered_sums, line_ids, metadata = charts.render_line_graph_with_metadata(...)
+local ordered_sums, line_ids, metadata = charts.render.line_graph_with_metadata(...)
 -- Create hit regions
-local hit_regions = charts.create_line_graph_hit_regions(chunk, metadata)
+local hit_regions = charts.interaction.create_line_graph_hit_regions(chunk, metadata)
 -- Convert screen position to tile coordinates
-local tile_pos = charts.screen_to_tile(camera_pos, zoom, widget_size, screen_pos)
+local tile_pos = charts.interaction.screen_to_tile(camera_pos, zoom, widget_size, screen_pos)
 -- Hit test
-local region = charts.hit_test(hit_regions, tile_pos)
+local region = charts.interaction.hit_test(hit_regions, tile_pos)
 -- Create visual feedback
-local highlight = charts.create_highlight(surface, region)
-local tooltip = charts.create_tooltip(surface, tile_pos, {"Line 1", "Line 2"})
+local highlight = charts.interaction.create_highlight(surface, region)
+local tooltip = charts.interaction.create_tooltip(surface, tile_pos, {"Line 1", "Line 2"})
 ```
 
 **Overlay Buttons:** Factorio doesn't expose mouse position over cameras. Use transparent buttons:
 ```lua
-local buttons = charts.generate_overlay_buttons(camera_pos, zoom, widget_size, hit_regions)
+-- Generate button configs from hit regions
+local buttons = charts.interaction.generate_overlay_buttons(camera_pos, zoom, widget_size, hit_regions)
 -- buttons[i] = {region_id, style_mods, region}
--- Create actual GUI buttons with raise_hover_events=true
+
+-- Or create buttons directly on a GUI element
+local created = charts.interaction.create_overlay_buttons(parent, button_configs, {
+    button_style = "my_transparent_button_style",
+    widget_width = 900,
+    widget_height = 700,
+})
 ```
 
 **Animation:** Smooth transitions via `charts.animation`:
@@ -143,7 +178,7 @@ local anim = charts.animation.create({
     easing = "ease_in_out",
     on_update = function(t, values, anim) ... end,
 })
--- Register tick handler: charts.register_events({})
+-- Register tick handler: charts.events.register({})
 -- Or manually: charts.animation.update_all(animations_table, current_tick)
 ```
 
@@ -155,16 +190,16 @@ local interval_defs = {
     {name = "1m",  ticks = 6,   steps = 10,  length = 600},  -- avg of 6 samples, 10 min buffer
     {name = "10m", ticks = 60,  steps = nil, length = 600},  -- avg of 10 samples, 100 min buffer
 }
-local intervals = charts.create_time_series(interval_defs)
+local intervals = charts.time_series.create(interval_defs)
 
 -- Allocate chunk for rendering (store in interval)
-intervals[1].chunk = charts.allocate_chunk(surface_data)
+intervals[1].chunk = charts.surface.allocate_chunk(surface_data)
 
 -- Add data each tick - automatically cascades to coarser intervals
-charts.add_datapoint(intervals, {series1 = 50, series2 = 75})
+charts.time_series.add_datapoint(intervals, {series1 = 50, series2 = 75})
 
 -- Render a specific interval (handles lifecycle: cleanup, render, hit regions, caching)
-local ordered_sums, hit_regions = charts.render_time_series(surface, intervals, 1, {
+local ordered_sums, hit_regions = charts.render.time_series(surface, intervals, 1, {
     selected_series = nil,  -- or {series1 = true, series2 = false}
     y_range = {0, 100},     -- fixed range, or nil for auto-scale
     label_format = "percent", -- or "time"

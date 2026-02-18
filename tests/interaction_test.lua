@@ -671,3 +671,214 @@ test("create_legend_hit_regions creates regions for legend items", function()
 	assert.equals(3, region1.tile_bounds.right)
 	assert.equals(1.5, region1.tile_bounds.bottom)
 end)
+
+-- ============================================================================
+-- create_overlay_buttons tests
+-- ============================================================================
+
+-- Note: create_overlay_buttons requires a real LuaGuiElement parent (camera widget),
+-- so we test it via a player GUI in interactive tests.
+
+test("create_overlay_buttons with player GUI", function()
+	local player = game.players[1]
+	if not player then return end  -- Skip if no player available
+
+	-- Create a temporary frame to act as our "camera" parent
+	local frame = player.gui.screen.add{type = "frame", direction = "vertical"}
+	frame.style.width = 400
+	frame.style.height = 300
+
+	local button_configs = {
+		{
+			style_mods = {left_margin = 10, top_margin = 20, width = 50, height = 30},
+			tooltip = "Button A",
+		},
+		{
+			style_mods = {left_margin = 100, top_margin = 50, width = 60, height = 40},
+			tooltip = "Button B",
+		},
+	}
+
+	local interaction = require("__factorio-charts__/interaction/interaction")
+	local created = interaction.create_overlay_buttons(frame, button_configs, {
+		button_style = "button",  -- use built-in style for testing
+		widget_width = 400,
+		widget_height = 300,
+	})
+
+	-- Should create 2 buttons
+	assert.equals(2, #created)
+
+	-- Frame should have 2 wrapper children (one per button)
+	assert.equals(2, #frame.children)
+
+	-- Verify z-order sorting: buttons are sorted by right edge descending
+	-- Button B has right_edge=160, Button A has right_edge=60
+	-- So Button B's wrapper should come first
+	local first_wrapper = frame.children[1]
+	assert.equals(160, first_wrapper.style.width)  -- Button B's right edge
+
+	local second_wrapper = frame.children[2]
+	assert.equals(60, second_wrapper.style.width)  -- Button A's right edge
+
+	-- Cleanup
+	frame.destroy()
+end)
+
+test("create_overlay_buttons clips off-screen buttons", function()
+	local player = game.players[1]
+	if not player then return end
+
+	local frame = player.gui.screen.add{type = "frame", direction = "vertical"}
+	frame.style.width = 200
+	frame.style.height = 200
+
+	local button_configs = {
+		{
+			style_mods = {left_margin = 10, top_margin = 10, width = 30, height = 30},
+			tooltip = "Visible",
+		},
+		{
+			style_mods = {left_margin = 300, top_margin = 10, width = 30, height = 30},
+			tooltip = "Off-screen right",
+		},
+		{
+			style_mods = {left_margin = 10, top_margin = 300, width = 30, height = 30},
+			tooltip = "Off-screen bottom",
+		},
+	}
+
+	local interaction = require("__factorio-charts__/interaction/interaction")
+	local created = interaction.create_overlay_buttons(frame, button_configs, {
+		button_style = "button",
+		widget_width = 200,
+		widget_height = 200,
+	})
+
+	-- Only 1 visible button should be created
+	assert.equals(1, #created)
+	assert.equals(1, #frame.children)
+
+	frame.destroy()
+end)
+
+test("create_overlay_buttons clear_existing=false preserves children", function()
+	local player = game.players[1]
+	if not player then return end
+
+	local frame = player.gui.screen.add{type = "frame", direction = "vertical"}
+	frame.style.width = 400
+	frame.style.height = 300
+
+	-- Add an existing child
+	frame.add{type = "label", caption = "existing"}
+
+	local button_configs = {
+		{
+			style_mods = {left_margin = 10, top_margin = 20, width = 50, height = 30},
+			tooltip = "New button",
+		},
+	}
+
+	local interaction = require("__factorio-charts__/interaction/interaction")
+	local created = interaction.create_overlay_buttons(frame, button_configs, {
+		button_style = "button",
+		clear_existing = false,
+	})
+
+	-- Should have 2 children: the existing label + 1 wrapper
+	assert.equals(2, #frame.children)
+	assert.equals(1, #created)
+
+	frame.destroy()
+end)
+
+test("create_overlay_buttons with empty configs clears children", function()
+	local player = game.players[1]
+	if not player then return end
+
+	local frame = player.gui.screen.add{type = "frame", direction = "vertical"}
+	-- Add some children
+	frame.add{type = "label", caption = "child1"}
+	frame.add{type = "label", caption = "child2"}
+	assert.equals(2, #frame.children)
+
+	local interaction = require("__factorio-charts__/interaction/interaction")
+	local created = interaction.create_overlay_buttons(frame, {}, {
+		button_style = "button",
+	})
+
+	-- Should have cleared all children and returned empty
+	assert.equals(0, #frame.children)
+	assert.equals(0, #created)
+
+	frame.destroy()
+end)
+
+test("create_overlay_buttons passes tags to buttons", function()
+	local player = game.players[1]
+	if not player then return end
+
+	local frame = player.gui.screen.add{type = "frame", direction = "vertical"}
+	frame.style.width = 400
+	frame.style.height = 300
+
+	local button_configs = {
+		{
+			style_mods = {left_margin = 10, top_margin = 20, width = 50, height = 30},
+			tooltip = "Tagged",
+			tags = {my_tag = "hello"},
+		},
+	}
+
+	local interaction = require("__factorio-charts__/interaction/interaction")
+	local created = interaction.create_overlay_buttons(frame, button_configs, {
+		button_style = "button",
+	})
+
+	assert.equals(1, #created)
+	assert.equals("hello", created[1].tags.my_tag)
+
+	frame.destroy()
+end)
+
+test("create_overlay_buttons returns empty for invalid parent", function()
+	local interaction = require("__factorio-charts__/interaction/interaction")
+	local created = interaction.create_overlay_buttons(nil, {}, {button_style = "button"})
+	assert.equals(0, #created)
+end)
+
+test("create_overlay_buttons z-order: same right edge sorts by bottom edge", function()
+	local player = game.players[1]
+	if not player then return end
+
+	local frame = player.gui.screen.add{type = "frame", direction = "vertical"}
+	frame.style.width = 400
+	frame.style.height = 300
+
+	-- Two buttons with same right edge (same bar), different heights
+	local button_configs = {
+		{
+			style_mods = {left_margin = 50, top_margin = 100, width = 30, height = 50},
+			tooltip = "Lower segment",  -- bottom = 150
+		},
+		{
+			style_mods = {left_margin = 50, top_margin = 50, width = 30, height = 50},
+			tooltip = "Upper segment",  -- bottom = 100
+		},
+	}
+
+	local interaction = require("__factorio-charts__/interaction/interaction")
+	local created = interaction.create_overlay_buttons(frame, button_configs, {
+		button_style = "button",
+		widget_width = 400,
+		widget_height = 300,
+	})
+
+	assert.equals(2, #created)
+	-- Lower segment (bottom=150) should be first (descending bottom edge)
+	assert.equals("Lower segment", created[1].tooltip)
+	assert.equals("Upper segment", created[2].tooltip)
+
+	frame.destroy()
+end)

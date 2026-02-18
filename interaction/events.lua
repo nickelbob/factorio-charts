@@ -1,7 +1,7 @@
 -- Event handler registration for interactive charts
 local events = {}
 
-local animation_module = require("animation")
+local animation_module = require("interaction/animation")
 
 -- Storage key for chart animations
 local ANIMATIONS_KEY = "charts_animations"

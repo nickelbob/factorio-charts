@@ -1,11 +1,11 @@
 -- High-level interactive chart wrapper
 local interactive_chart = {}
 
-local line_graph = require("line-graph")
-local bar_chart = require("bar-chart")
-local interaction = require("interaction")
-local animation_module = require("animation")
-local format_module = require("format")
+local line_graph = require("charts/line-graph")
+local bar_chart = require("charts/bar-chart")
+local interaction = require("interaction/interaction")
+local animation_module = require("interaction/animation")
+local format_module = require("core/format")
 
 ---@class InteractiveChartState
 ---@field id string Unique chart identifier

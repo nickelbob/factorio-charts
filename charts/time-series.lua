@@ -3,8 +3,8 @@
 
 local time_series = {}
 
-local line_graph = require("line-graph")
-local interaction = require("interaction")
+local line_graph = require("charts/line-graph")
+local interaction = require("interaction/interaction")
 
 ---Create a new interval set from definitions
 ---@param defs table[] Array of {name, ticks, steps, length} definitions

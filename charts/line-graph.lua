@@ -1,8 +1,8 @@
 -- Line graph rendering
 local line_graph = {}
 
-local colors_module = require("colors")
-local format_module = require("format")
+local colors_module = require("core/colors")
+local format_module = require("core/format")
 
 ---Internal render function that optionally collects metadata
 ---@param surface LuaSurface The rendering surface

@@ -1,7 +1,7 @@
 -- Interaction primitives for chart hover/click detection
 local interaction = {}
 
-local colors_module = require("colors")
+local colors_module = require("core/colors")
 
 ---@class HitRegion
 ---@field id string Unique identifier for this hit region
@@ -390,6 +390,106 @@ function interaction.generate_overlay_buttons(camera_position, camera_zoom, widg
 	end
 
 	return buttons
+end
+
+---Create z-ordered overlay buttons on a camera widget
+---@param parent LuaGuiElement Camera widget
+---@param button_configs table[] From generate_overlay_buttons() — each has {style_mods, tooltip?, tags?}
+---@param options table
+---  - button_style: string (required, mod-specific style prototype name)
+---  - widget_width: number? (for clipping off-screen buttons)
+---  - widget_height: number? (for clipping)
+---  - clear_existing: boolean? (default true)
+---@return LuaGuiElement[] created buttons
+function interaction.create_overlay_buttons(parent, button_configs, options)
+	if not parent or not parent.valid then
+		return {}
+	end
+
+	options = options or {}
+	local button_style = options.button_style
+	local widget_width = options.widget_width
+	local widget_height = options.widget_height
+	local clear_existing = options.clear_existing
+	if clear_existing == nil then clear_existing = true end
+
+	-- Clear existing children of parent
+	if clear_existing then
+		for _, child in pairs(parent.children) do
+			if child.valid then
+				child.destroy()
+			end
+		end
+	end
+
+	if not button_configs or #button_configs == 0 then
+		return {}
+	end
+
+	-- Sort buttons by right edge (descending), then by bottom edge (descending)
+	-- This ensures correct z-ordering: when wrappers overlap, the topmost one
+	-- contains the button that's actually at the hover position
+	local sorted_configs = {}
+	for _, config in ipairs(button_configs) do
+		sorted_configs[#sorted_configs + 1] = config
+	end
+	table.sort(sorted_configs, function(a, b)
+		local right_a = a.style_mods.left_margin + a.style_mods.width
+		local right_b = b.style_mods.left_margin + b.style_mods.width
+		if right_a ~= right_b then
+			return right_a > right_b
+		end
+		local bottom_a = a.style_mods.top_margin + a.style_mods.height
+		local bottom_b = b.style_mods.top_margin + b.style_mods.height
+		return bottom_a > bottom_b
+	end)
+
+	local created = {}
+	for _, config in ipairs(sorted_configs) do
+		local left = config.style_mods.left_margin
+		local top = config.style_mods.top_margin
+		local width = config.style_mods.width
+		local height = config.style_mods.height
+		local right_edge = left + width
+
+		-- Skip buttons that would be completely off-screen
+		local visible = true
+		if widget_width and (right_edge <= 0 or left >= widget_width) then
+			visible = false
+		end
+		if widget_height and (top + height <= 0 or top >= widget_height) then
+			visible = false
+		end
+
+		if visible then
+			local wrapper = parent.add{
+				type = "flow",
+				direction = "vertical",
+			}
+			-- Wrapper only extends to the button's right edge, not full width
+			-- Combined with descending sort order, this ensures correct z-ordering
+			wrapper.style.width = right_edge
+			wrapper.style.height = 0
+			wrapper.style.padding = 0
+			wrapper.style.vertical_spacing = 0
+
+			local btn = wrapper.add{
+				type = "button",
+				style = button_style,
+				tooltip = config.tooltip,
+				tags = config.tags,
+			}
+			btn.style.left_margin = left
+			btn.style.top_margin = top
+			btn.style.bottom_margin = -top - height
+			btn.style.width = width
+			btn.style.height = height
+
+			created[#created + 1] = btn
+		end
+	end
+
+	return created
 end
 
 return interaction

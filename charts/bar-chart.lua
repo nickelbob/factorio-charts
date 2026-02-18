@@ -1,8 +1,8 @@
 -- Stacked bar chart rendering
 local bar_chart = {}
 
-local colors_module = require("colors")
-local format_module = require("format")
+local colors_module = require("core/colors")
+local format_module = require("core/format")
 
 -- Constants
 local STRIPE_SPACING = 0.4  -- Increased from 0.15 for better performance
