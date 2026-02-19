@@ -4,7 +4,6 @@ local interactive_chart = {}
 local line_graph = require("charts/line-graph")
 local bar_chart = require("charts/bar-chart")
 local interaction = require("interaction/interaction")
-local animation_module = require("interaction/animation")
 local format_module = require("core/format")
 
 ---@class InteractiveChartState
@@ -16,7 +15,6 @@ local format_module = require("core/format")
 ---@field render_ids LuaRenderObject[] Current render object IDs
 ---@field highlights table<string, LuaRenderObject> Active highlights by region_id
 ---@field tooltips table<string, LuaRenderObject[]> Active tooltips by region_id
----@field animations table<string, Animation> Active animations
 ---@field selected_series table<string, boolean>? Series visibility state
 ---@field hovered_region string? Currently hovered region ID
 ---@field options table Last render options
@@ -74,7 +72,7 @@ function interactive_chart.create_line_graph(surface, chunk, options)
 		render_ids = {},
 		highlights = {},
 		tooltips = {},
-		animations = {},
+
 		selected_series = options.selected_series,
 		hovered_region = nil,
 		options = options,
@@ -120,14 +118,12 @@ end
 ---Update an interactive line graph with new data
 ---@param state InteractiveChartState Existing chart state
 ---@param options table New options (merged with existing)
----@param animate boolean? Whether to animate the transition (not yet implemented)
-function interactive_chart.update_line_graph(state, options, animate)
+function interactive_chart.update_line_graph(state, options)
 	-- Merge new options with existing
 	for key, value in pairs(options) do
 		state.options[key] = value
 	end
 
-	-- For now, just redraw (animation support can be added later)
 	interactive_chart.redraw_line_graph(state)
 end
 
@@ -146,7 +142,7 @@ function interactive_chart.create_bar_chart(surface, chunk, options)
 		render_ids = {},
 		highlights = {},
 		tooltips = {},
-		animations = {},
+
 		selected_series = nil,
 		hovered_region = nil,
 		options = options,
@@ -190,14 +186,12 @@ end
 ---Update an interactive bar chart with new data
 ---@param state InteractiveChartState Existing chart state
 ---@param options table New options (merged with existing)
----@param animate boolean? Whether to animate the transition
-function interactive_chart.update_bar_chart(state, options, animate)
+function interactive_chart.update_bar_chart(state, options)
 	-- Merge new options with existing
 	for key, value in pairs(options) do
 		state.options[key] = value
 	end
 
-	-- For now, just redraw
 	interactive_chart.redraw_bar_chart(state)
 end
 
@@ -355,11 +349,10 @@ function interactive_chart.format_tooltip(state, region)
 	return lines
 end
 
----Toggle series visibility with optional animation
+---Toggle series visibility
 ---@param state InteractiveChartState The chart state
 ---@param series_name string The series to toggle
----@param animate boolean? Whether to animate the transition
-function interactive_chart.toggle_series(state, series_name, animate)
+function interactive_chart.toggle_series(state, series_name)
 	if state.chart_type ~= "line_graph" then
 		return
 	end
@@ -370,20 +363,7 @@ function interactive_chart.toggle_series(state, series_name, animate)
 
 	state.options.selected_series = state.selected_series
 
-	-- Redraw (animation can be added later)
 	interactive_chart.redraw_line_graph(state)
-end
-
----Process animations for this chart
----@param state InteractiveChartState The chart state
----@param current_tick number Current game tick
-function interactive_chart.tick(state, current_tick)
-	if next(state.animations) then
-		local completed = animation_module.update_all(state.animations, current_tick)
-		for _, id in ipairs(completed) do
-			state.animations[id] = nil
-		end
-	end
 end
 
 ---Cleanup all resources
@@ -392,11 +372,6 @@ function interactive_chart.destroy(state)
 	clear_render_objects(state)
 	clear_highlights(state)
 	clear_tooltips(state)
-
-	-- Cancel all animations
-	for id in pairs(state.animations) do
-		state.animations[id] = nil
-	end
 end
 
 ---Get overlay button configurations for a camera widget

@@ -33,16 +33,15 @@ factorio-charts/
 │   └── time-series.lua             Multi-resolution time series with cascading aggregation
 ├── interaction/
 │   ├── interaction.lua             Hit testing, coordinate transforms, highlights/tooltips
-│   ├── animation.lua               Easing functions, interpolation, animation lifecycle
 │   ├── interactive-chart.lua       High-level wrapper with state management
-│   └── events.lua                  Event handler registration for animation processing
+│   └── events.lua                  Event handler registration
 └── tests/
 ```
 
 **Grouping rationale:**
 - **`core/`** — Shared foundations with no chart-type deps (surface mgmt, colors, formatting)
 - **`charts/`** — Chart type implementations (depend on core/, produce rendered output)
-- **`interaction/`** — User interaction: hit testing, animation, high-level interactive wrapper, events
+- **`interaction/`** — User interaction: hit testing, high-level interactive wrapper, events
 
 ### Sub-table API
 
@@ -55,9 +54,8 @@ factorio-charts/
 | `charts.colors` | Color palette: `get_series_colors`, `get_series_color`, `get_grid_color`, `get_label_color`, `get_max_series` |
 | `charts.format` | Formatting: `time_label`, `percent_label`, `time_detailed` |
 | `charts.interaction` | Hit testing, coordinate transforms, highlights, tooltips, overlay buttons |
-| `charts.animation` | Easing, interpolation, animation lifecycle (module re-exported directly) |
 | `charts.interactive` | High-level interactive chart wrappers: `create_line_graph`, `on_hover`, `destroy`, etc. |
-| `charts.events` | Event registration for animation: `register`, `unregister`, `add_animation`, etc. |
+| `charts.events` | Event registration: `register`, `unregister`, `is_registered`, `get_tick_handler` |
 | `charts.time_series` | Time series data: `create`, `add_datapoint`, `get_average`, `clear` |
 
 ### Key Concepts
@@ -168,18 +166,6 @@ local created = charts.interaction.create_overlay_buttons(parent, button_configs
     widget_width = 900,
     widget_height = 700,
 })
-```
-
-**Animation:** Smooth transitions via `charts.animation`:
-```lua
-local anim = charts.animation.create({
-    start_tick = game.tick, duration = 30,
-    from = {value = 0}, to = {value = 100},
-    easing = "ease_in_out",
-    on_update = function(t, values, anim) ... end,
-})
--- Register tick handler: charts.events.register({})
--- Or manually: charts.animation.update_all(animations_table, current_tick)
 ```
 
 **Time Series:** Multi-resolution data storage with cascading aggregation (like RRDtool):

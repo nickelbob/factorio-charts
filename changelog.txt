@@ -1,11 +1,18 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.9
+Date: 2026-02-19
+  Changes:
+    - Removed unused animation module (impractical in Factorio's rendering engine)
+    - Fixed test failure in create_overlay_buttons (require inside test body)
+    - Documented custom function support for label_format in line graphs
+---------------------------------------------------------------------------------------------------
 Version: 1.0.8
 Date: 2025-02-19
   Features:
     - Reorganized source files into core/, charts/, and interaction/ subdirectories
     - New sub-table API (charts.surface, charts.render, charts.interaction, etc.)
     - Added create_overlay_buttons for z-ordered GUI button creation on camera widgets
-    - Expanded documentation covering interaction, animation, time series, and overlay buttons
+    - Expanded documentation covering interaction, time series, and overlay buttons
   Info:
     - All existing flat API calls (e.g. charts.create_surface) remain fully backward compatible
 ---------------------------------------------------------------------------------------------------

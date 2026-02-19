@@ -843,8 +843,7 @@ test("create_overlay_buttons passes tags to buttons", function()
 end)
 
 test("create_overlay_buttons returns empty for invalid parent", function()
-	local interaction = require("__factorio-charts__/interaction/interaction")
-	local created = interaction.create_overlay_buttons(nil, {}, {button_style = "button"})
+	local created = charts.interaction.create_overlay_buttons(nil, {}, {button_style = "button"})
 	assert.equals(0, #created)
 end)
 

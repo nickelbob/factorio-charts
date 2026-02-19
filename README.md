@@ -7,7 +7,6 @@ A reusable charting library for Factorio 2.0+ mods. Provides line graphs and sta
 - **Line Graphs**: Multi-series time series data with auto-scaling Y-axis
 - **Stacked Bar Charts**: Phase breakdown visualization with optional hatched phases
 - **Interactive Charts**: Hit testing, hover highlights, tooltips, overlay buttons
-- **Animation**: Easing functions, interpolation, smooth transitions
 - **Time Series**: Multi-resolution cascading aggregation (like RRDtool)
 - **Surface Management**: Automatic chunk allocation and cleanup
 - **Color Palettes**: 12 distinct colors for series differentiation
@@ -43,7 +42,7 @@ local ordered_sums, line_ids = charts.render.line_graph(surface_data.surface, ch
     counts = sample_counts,       -- {[series_name]: count}
     sum = series_sums,            -- {[series_name]: total}
     y_range = {0, 100},           -- Optional fixed range (nil for auto-scale)
-    label_format = "percent",     -- "percent" or "time"
+    label_format = "percent",     -- "percent", "time", or function(value) -> string
     selected_series = nil,        -- Filter: nil=all, {[name]: false}=hide
     ttl = 360,                    -- Render lifetime in ticks
 })
@@ -134,16 +133,6 @@ local camera_widget = parent.add{
 | `charts.interactive.toggle_series(state, series_name)` | Toggle series visibility |
 | `charts.interactive.destroy(state)` | Clean up all resources |
 
-### Animation (`charts.animation`)
-
-| Function | Description |
-|----------|-------------|
-| `charts.animation.create(params)` | Create an animation (easing, from/to, callbacks) |
-| `charts.animation.update(anim, tick)` | Update a single animation |
-| `charts.animation.update_all(animations, tick)` | Update all active animations |
-| `charts.animation.lerp(a, b, t)` | Linear interpolation for numbers |
-| `charts.animation.lerp_color(a, b, t)` | Linear interpolation for colors |
-
 ### Time Series (`charts.time_series`)
 
 | Function | Description |
@@ -158,10 +147,10 @@ local camera_widget = parent.add{
 
 | Function | Description |
 |----------|-------------|
-| `charts.events.register(handlers)` | Register tick handler for animations |
+| `charts.events.register(handlers)` | Register tick handler |
 | `charts.events.unregister()` | Unregister event handlers |
-| `charts.events.add_animation(anim)` | Add animation to global pool |
-| `charts.events.remove_animation(id)` | Remove animation from pool |
+| `charts.events.is_registered()` | Check if events are registered |
+| `charts.events.get_tick_handler()` | Get the tick handler function |
 
 ### Colors & Formatting
 

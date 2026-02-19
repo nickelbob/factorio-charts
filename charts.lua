@@ -12,7 +12,6 @@ local bar_chart = require("charts/bar-chart")
 local colors = require("core/colors")
 local format = require("core/format")
 local interaction = require("interaction/interaction")
-local animation = require("interaction/animation")
 local interactive_chart = require("interaction/interactive-chart")
 local events = require("interaction/events")
 local time_series = require("charts/time-series")
@@ -79,9 +78,6 @@ charts.interaction = {
 	create_overlay_buttons = interaction.create_overlay_buttons,
 }
 
--- Animation utilities (already a sub-table)
-charts.animation = animation
-
 -- Interactive chart wrappers
 charts.interactive = {
 	create_line_graph = interactive_chart.create_line_graph,
@@ -93,7 +89,6 @@ charts.interactive = {
 	on_hover_leave = interactive_chart.on_hover_leave,
 	on_click = interactive_chart.on_click,
 	toggle_series = interactive_chart.toggle_series,
-	tick = interactive_chart.tick,
 	destroy = interactive_chart.destroy,
 	get_overlay_buttons = interactive_chart.get_overlay_buttons,
 	hit_test = interactive_chart.hit_test,
@@ -106,11 +101,6 @@ charts.events = {
 	unregister = events.unregister,
 	is_registered = events.is_registered,
 	get_tick_handler = events.get_tick_handler,
-	add_animation = events.add_animation,
-	remove_animation = events.remove_animation,
-	is_animation_running = events.is_animation_running,
-	get_animations = events.get_animations,
-	clear_animations = events.clear_animations,
 }
 
 -- Time series data management
@@ -188,22 +178,16 @@ charts.chart_on_hover = interactive_chart.on_hover
 charts.chart_on_hover_leave = interactive_chart.on_hover_leave
 charts.chart_on_click = interactive_chart.on_click
 charts.toggle_chart_series = interactive_chart.toggle_series
-charts.chart_tick = interactive_chart.tick
 charts.destroy_interactive_chart = interactive_chart.destroy
 charts.get_chart_overlay_buttons = interactive_chart.get_overlay_buttons
 charts.chart_hit_test = interactive_chart.hit_test
 charts.chart_hit_test_screen = interactive_chart.hit_test_screen
 
--- Event registration (for animation processing)
+-- Event registration
 charts.register_events = events.register
 charts.unregister_events = events.unregister
 charts.is_events_registered = events.is_registered
 charts.get_tick_handler = events.get_tick_handler
-charts.add_animation = events.add_animation
-charts.remove_animation = events.remove_animation
-charts.is_animation_running = events.is_animation_running
-charts.get_animations = events.get_animations
-charts.clear_animations = events.clear_animations
 
 -- Time series data management
 charts.create_time_series = time_series.create_interval_set

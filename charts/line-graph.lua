@@ -292,7 +292,7 @@ end
 ---  - counts: table {[series_name]: sample_count}
 ---  - sum: table {[series_name]: total} for calculating averages
 ---  - y_range: table? {min, max} Fixed Y-axis range (nil for auto-scale)
----  - label_format: string? "percent" (default) or "time"
+---  - label_format: (string|function)? "percent" (default), "time", or function(value) -> string
 ---  - selected_series: table? {[name]: bool} Filter (nil = show all, false = hide)
 ---  - ttl: number? Time to live in ticks (default 360)
 ---  - viewport_width: number? Viewport width in pixels (default 900)

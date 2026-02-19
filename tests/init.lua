@@ -15,7 +15,6 @@ if script.active_mods["factorio-test"] then
         "tests/line_graph_test",
         "tests/bar_chart_test",
         "tests/edge_cases_test",
-        "tests/animation_test",
         "tests/interaction_test",
         "tests/interactive_chart_test",
         "tests/events_test",
