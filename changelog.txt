@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.8
+Date: 2025-02-19
+  Features:
+    - Reorganized source files into core/, charts/, and interaction/ subdirectories
+    - New sub-table API (charts.surface, charts.render, charts.interaction, etc.)
+    - Added create_overlay_buttons for z-ordered GUI button creation on camera widgets
+    - Expanded documentation covering interaction, animation, time series, and overlay buttons
+  Info:
+    - All existing flat API calls (e.g. charts.create_surface) remain fully backward compatible
+---------------------------------------------------------------------------------------------------
 Version: 1.0.2
 Date: 2025-01-03
   Features:
