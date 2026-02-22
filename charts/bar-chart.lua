@@ -75,6 +75,7 @@ local function render_internal(surface, chunk, options, collect_metadata, overla
 	local phase_colors = options.phase_colors
 	local phase_order = options.phase_order
 	local hatched_phases = options.hatched_phases or {}
+	local bar_icons = options.bar_icons
 	local ttl = options.ttl or 360
 	local viewport_width = options.viewport_width or 900
 	local viewport_height = options.viewport_height or 700
@@ -285,6 +286,22 @@ local function render_internal(surface, chunk, options, collect_metadata, overla
 				cumulative_height = cumulative_height + segment_height
 			end
 		end
+
+		-- Draw item icon above bar if provided
+		if bar_icons and bar_icons[bar_idx] then
+			local icon_size = 0.7
+			local icon_x = entity_pos.x + bar_x + bar_width / 2
+			local icon_y = entity_pos.y + bar_bottom - cumulative_height - icon_size / 2 - 0.1
+			local sprite_id = rendering.draw_sprite{
+				sprite = bar_icons[bar_idx],
+				surface = surface,
+				target = {icon_x, icon_y},
+				x_scale = icon_size,
+				y_scale = icon_size,
+				time_to_live = ttl,
+			}
+			line_ids[#line_ids + 1] = sprite_id
+		end
 	end
 
 	-- Build metadata
@@ -320,6 +337,7 @@ end
 ---  - phase_colors: table {[phase_name]: color}
 ---  - phase_order: string[] Order of phases from bottom to top
 ---  - hatched_phases: table? {[phase_name]: true} Phases to draw with diagonal stripes
+---  - bar_icons: table? Array indexed by bar index, each entry is a sprite path string (e.g. "item/iron-plate")
 ---  - ttl: number? Time to live in ticks (default 360)
 ---  - viewport_width: number? Viewport width in pixels (default 900)
 ---  - viewport_height: number? Viewport height in pixels (default 700)
