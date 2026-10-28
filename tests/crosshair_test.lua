@@ -307,7 +307,7 @@ end)
 test("hover regions on a real render cover the plot from plot.left to plot.right", function()
 	for _, mode in ipairs({"cell", "column"}) do
 		local state = make_state("test-crosshair-cover-" .. mode)
-		charts.interactive.get_hover_buttons(state, {position = {x = 14, y = 11}, zoom = 1, widget_width = 900, widget_height = 700}, {mode = mode})
+		charts.interactive.get_hover_buttons(state, {position = {x = 14, y = 11}, zoom = 1, widget_width = 900, widget_height = 700}, {mode = mode, gui_zoom = 1})
 		local plot = state.metadata.plot
 		local min_left, max_right = math.huge, -math.huge
 		for _, region in ipairs(charts.interactive.get_hover_regions(state)) do
@@ -329,7 +329,7 @@ test("hover regions on an axes render carry seconds_ago and an si tooltip", func
 		label_format = "si",
 		y_range = "zero",
 	})
-	local configs = charts.interactive.get_hover_buttons(state, {position = {x = 14, y = 11}, zoom = 1, widget_width = 900, widget_height = 700})
+	local configs = charts.interactive.get_hover_buttons(state, {position = {x = 14, y = 11}, zoom = 1, widget_width = 900, widget_height = 700}, {gui_zoom = 1})
 	local newest
 	for _, config in ipairs(configs) do
 		if config.region.data.column == 20 and config.region.data.series_name == "copper" then
@@ -427,7 +427,7 @@ test("column mode crosshair draws a marker per series", function()
 	local player = game.players[1]
 	if not player then return skip_without_player() end
 	local state = make_state("test-crosshair-column-draw")
-	local configs = charts.interactive.get_hover_buttons(state, {position = {x = 14, y = 11}, zoom = 1, widget_width = 900, widget_height = 700}, {mode = "column"})
+	local configs = charts.interactive.get_hover_buttons(state, {position = {x = 14, y = 11}, zoom = 1, widget_width = 900, widget_height = 700}, {mode = "column", gui_zoom = 1})
 	assert.equals(20, #configs)
 	charts.interactive.set_hover(state, player, configs[1].region)
 	-- vertical line + one marker per series
@@ -529,7 +529,7 @@ local CAMERA = {position = {x = 14.0625, y = 10.9375}, zoom = 1, widget_width = 
 
 test("get_hover_buttons tags every config and sets a tooltip", function()
 	local state = make_state("test-crosshair-buttons", {id = "crosshair-buttons"})
-	local configs = charts.interactive.get_hover_buttons(state, CAMERA)
+	local configs = charts.interactive.get_hover_buttons(state, CAMERA, {gui_zoom = 1})
 	assert.is_true(#configs > 0)
 	for _, config in ipairs(configs) do
 		assert.equals("crosshair-buttons", config.tags.factorio_charts.chart)
@@ -539,8 +539,22 @@ test("get_hover_buttons tags every config and sets a tooltip", function()
 	end
 	local custom = charts.interactive.get_hover_buttons(state, CAMERA, {
 		format_tooltip = function(cell) return "col " .. cell.column end,
+		gui_zoom = 1,
 	})
 	assert.equals("col " .. custom[1].region.data.column, custom[1].tooltip)
+	charts.interactive.destroy(state)
+end)
+
+test("get_hover_buttons without opts.player or opts.gui_zoom errors instead of guessing", function()
+	local state = make_state("test-crosshair-needs-zoom", {id = "crosshair-needs-zoom"})
+	local ok, err = pcall(charts.interactive.get_hover_buttons, state, CAMERA)
+	assert.is_false(ok)
+	assert.is_truthy(string.find(err, "needs opts.player or opts.gui_zoom", 1, true))
+	-- Either one satisfies it.
+	assert.is_true(#charts.interactive.get_hover_buttons(state, CAMERA, {gui_zoom = 1}) > 0)
+	assert.is_true(#charts.interactive.get_hover_buttons(state, CAMERA, {
+		player = {valid = true, display_scale = 1, display_density_scale = 1},
+	}) > 0)
 	charts.interactive.destroy(state)
 end)
 
@@ -560,7 +574,7 @@ test("get_hover_buttons with opts.player places buttons for a zoom that is not s
 	end
 	-- Without the player the edge columns land short of the plot by 0.05 * density / scale of their offset.
 	local default = {}
-	for _, config in ipairs(charts.interactive.get_hover_buttons(state, camera, {mode = "column"})) do
+	for _, config in ipairs(charts.interactive.get_hover_buttons(state, camera, {mode = "column", gui_zoom = 1})) do
 		default[config.region_id] = config.style_mods
 	end
 	local first, last
@@ -602,7 +616,7 @@ test("handle_gui_hover resolves a tagged button and handle_gui_leave clears only
 	local frame = player.gui.screen.add{type = "frame", direction = "vertical"}
 	frame.style.width = 900
 	frame.style.height = 700
-	local configs = charts.interactive.get_hover_buttons(state, CAMERA)
+	local configs = charts.interactive.get_hover_buttons(state, CAMERA, {gui_zoom = 1})
 	local buttons = charts.interaction.create_overlay_buttons(frame, configs, {
 		button_style = "button",
 		widget_width = 900,
@@ -672,7 +686,7 @@ test("hover needs an explicit id: a generated id is not registered and hover cal
 
 	local named = make_state("test-crosshair-with-id", {id = "crosshair-with-id"})
 	assert.equals(named, charts.interactive.get_state("crosshair-with-id"))
-	assert.is_true(#charts.interactive.get_hover_buttons(named, CAMERA) > 0)
+	assert.is_true(#charts.interactive.get_hover_buttons(named, CAMERA, {gui_zoom = 1}) > 0)
 	charts.interactive.destroy(named)
 end)
 
@@ -697,7 +711,7 @@ test("callbacks given to register are used without being in options", function()
 	})
 	assert.is_nil(state.options.on_cell_hover)
 	assert.is_nil(state.options.format_tooltip)
-	local configs = charts.interactive.get_hover_buttons(state, CAMERA)
+	local configs = charts.interactive.get_hover_buttons(state, CAMERA, {gui_zoom = 1})
 	assert.equals("registered " .. configs[1].region.data.column, configs[1].tooltip)
 	local player = game.players[1]
 	if player then
@@ -708,7 +722,8 @@ test("callbacks given to register are used without being in options", function()
 	end
 	charts.interactive.destroy(state)
 	assert.equals("table", type(charts.interactive.get_hover_buttons(
-		make_state("test-crosshair-register-callbacks-2", {id = "crosshair-register-callbacks"}), CAMERA)[1].tooltip))
+		make_state("test-crosshair-register-callbacks-2", {id = "crosshair-register-callbacks"}), CAMERA,
+		{gui_zoom = 1})[1].tooltip))
 end)
 
 test("old on_hover path keeps working next to the crosshair", function()

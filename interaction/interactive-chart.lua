@@ -42,6 +42,10 @@ local registry = {}
 local registry_callbacks = {}
 
 local HOVER_ID_ERROR = "factorio-charts: interactive charts need options.id to use hover"
+-- gui_zoom cannot be derived without a player: it depends on the camera zoom against that player's
+-- display_scale and display_density_scale. Defaulting it silently misplaces buttons for any camera zoom
+-- other than display_scale / display_density_scale, so the caller has to say which it means.
+local HOVER_ZOOM_ERROR = "factorio-charts: get_hover_buttons needs opts.player or opts.gui_zoom"
 
 local function has_explicit_id(state)
 	return state.id ~= nil and state.options ~= nil and state.options.id ~= nil and state.options.id == state.id
@@ -623,10 +627,10 @@ end
 ---
 ---Each config carries tags {factorio_charts = {chart = state.id, region = region.id}}, a native tooltip and
 ---raise_hover_events = true. Positions are in GUI units: camera tiles are 32 * camera_zoom * density / scale GUI
----units wide, so pass opts.player (or opts.gui_zoom). Without either, gui_zoom is 1, which is exact only for a camera
----zoom of exactly display_scale / display_density_scale (Cybersyn's Breakdown tab). Cybersyn's Utilization tab
----adds 0.05 to that, so its true gui_zoom is 1 + 0.05 * density / scale and the default puts buttons short of their
----columns by that factor of their distance from the widget centre: it needs opts.player.
+---units wide, so pass opts.player, which derives it. Pass opts.gui_zoom instead only to state the factor outright;
+---gui_zoom = 1 is right for a camera zoom of exactly display_scale / display_density_scale (Cybersyn's Breakdown
+---tab) and wrong for any other, such as Utilization's display_scale / display_density_scale + 0.05, whose true
+---gui_zoom is 1 + 0.05 * density / scale. Passing neither raises an error rather than guessing.
 ---@param state InteractiveChartState
 ---@param camera_info table From setup_camera_widget: {position, zoom, widget_width, widget_height}
 ---@param opts table? {mode?: "cell"|"column", max_buttons?: number, format_tooltip?: fun(cell, state): LocalisedString, player?: LuaPlayer, gui_zoom?: number}
@@ -651,11 +655,10 @@ function interactive_chart.get_hover_buttons(state, camera_info, opts)
 	local gui_zoom = opts.gui_zoom
 	if not gui_zoom then
 		local player = opts.player
-		if player and player.valid and camera_info.zoom then
-			gui_zoom = camera_info.zoom * player.display_density_scale / player.display_scale
-		else
-			gui_zoom = 1
+		if not (player and player.valid and camera_info.zoom) then
+			error(HOVER_ZOOM_ERROR, 2)
 		end
+		gui_zoom = camera_info.zoom * player.display_density_scale / player.display_scale
 	end
 
 	local configs = interaction.generate_overlay_buttons(

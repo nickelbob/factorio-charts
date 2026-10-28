@@ -237,10 +237,10 @@ Details:
   adjacent columns share a button and report the centre column, or the nearest column of the group that has
   points when the centre has none (300 columns x 6 series -> k = 5, 360 buttons).
   `opts.format_tooltip(cell, state) -> LocalisedString` replaces the default tooltip. Button positions are in GUI
-  units: pass `opts.player` (or `opts.gui_zoom`). The default without either is exact only for a camera zoom of
-  exactly `display_scale / display_density_scale` (Cybersyn's Breakdown tab); any other zoom, such as Utilization's
-  `display_scale / display_density_scale + 0.05`, drifts further off the plot the further a column is from the
-  widget centre.
+  units: pass `opts.player`, which derives the factor, or `opts.gui_zoom` to state it outright. Passing neither
+  errors. `gui_zoom = 1` is right only for a camera zoom of exactly `display_scale / display_density_scale`
+  (Cybersyn's Breakdown tab); any other zoom, such as Utilization's `display_scale / display_density_scale +
+  0.05`, drifts further off the plot the further a column is from the widget centre.
 - Rebuild the buttons after `update_line_graph` (the tooltips hold values). An active crosshair follows a redraw
   to the same column and series. Rebuilding is not free (about 9 ms for 360 buttons), so do it when the data
   changes, throttled to the chart's refresh cadence, not every tick.

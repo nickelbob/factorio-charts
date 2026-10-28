@@ -25,6 +25,7 @@ Date: 2026-10-24
     - Mods with existing saves: call charts.surface.restyle_chunk(surface_data, chunk) once per stored chunk (or free and re-allocate them) to get the black background; until then old chunks keep their lights and lab tiles
     - Crosshair hover needs options.id: only states created with one are registered, and get_hover_buttons / set_hover / register raise an error without it (generated ids differ between server and joining clients). For states kept in storage, call charts.interactive.register(state, callbacks) in on_load and pass on_cell_hover / on_cell_leave / format_tooltip there, since functions cannot be saved
     - tests/init.lua passes load_luassert = true, which FactorioTest 3.x needs for the luassert-style asserts
+    - get_hover_buttons requires opts.player (or opts.gui_zoom): the GUI-unit factor depends on the camera zoom against that player's display_scale and display_density_scale, and no default is right for every camera
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.0
 Date: 2026-09-05
